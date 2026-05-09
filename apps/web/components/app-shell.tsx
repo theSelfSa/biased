@@ -13,6 +13,7 @@ export function AppShell({
     { href: "/dashboard", label: "Overview" },
     { href: "/imports", label: "Imports" },
     { href: "/documents", label: "Documents" },
+    { href: "/planner", label: "Forecast Lab" },
     { href: "/actions", label: "Action Center" },
     { href: "/ask", label: "Ask B.I.A.S.E.D." },
   ];
@@ -28,11 +29,12 @@ export function AppShell({
               </p>
               <div>
                 <h2 className="text-2xl font-semibold leading-tight">
-                  Decision intelligence for owners who cannot afford blind spots.
+                  Decision intelligence for owners who cannot afford blind
+                  spots.
                 </h2>
                 <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-                  Built for smaller businesses that need the operating clarity large
-                  companies already buy with bigger systems.
+                  Built for smaller businesses that need the operating clarity
+                  large companies already buy with bigger systems.
                 </p>
               </div>
             </div>
@@ -57,7 +59,9 @@ export function AppShell({
             </p>
             <div>
               <p className="text-base font-semibold">{userLabel}</p>
-              <p className="text-sm opacity-80">India-first pharmacy demo workspace</p>
+              <p className="text-sm opacity-80">
+                India-first pharmacy demo workspace
+              </p>
             </div>
             <Link href="/auth/sign-in">
               <Button className="w-full" variant="secondary">
