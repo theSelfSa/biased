@@ -10,6 +10,11 @@ services:
       - "5433:5432"
     volumes:
       - biased-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d biased"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   ollama:
     image: ollama/ollama:latest
@@ -18,6 +23,48 @@ services:
       - "11434:11434"
     volumes:
       - biased-ollama-data:/root/.ollama
+
+  api:
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+    container_name: biased-api
+    environment:
+      APP_ENV: development
+      CORS_ORIGINS: http://localhost:3000
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/biased
+      DEMO_WORKSPACE_SLUG: swasthya-care-pharmacy
+      DEMO_WORKSPACE_NAME: Swasthya Care Pharmacy
+      OLLAMA_BASE_URL: http://ollama:11434
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      ROUTER_TIMEOUT_SECONDS: 8
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+    ports:
+      - "8000:8000"
+
+  web:
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+    container_name: biased-web
+    environment:
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:8000
+      INTERNAL_API_BASE_URL: http://api:8000
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/biased
+      AUTH_SECRET: ${AUTH_SECRET:-biased-dev-secret-change-before-production}
+    depends_on:
+      api:
+        condition: service_started
+    ports:
+      - "3000:3000"
 
 volumes:
   biased-postgres-data:

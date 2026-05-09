@@ -16,6 +16,14 @@ This repository is being built in public in visible milestones:
 4. Forecasting, scenarios, and action center
 5. OSS hardening, demos, and self-hosted packaging
 
+Checkpoint tags:
+
+- `v0.2.0-milestone-b-preview`
+- `v0.3.0-milestone-b-final`
+- `v0.4.0-milestone-c`
+- `v0.5.0-milestone-d`
+- `v1.0.0-showcase`
+
 ## Stack
 
 - Next.js App Router + TypeScript
@@ -54,6 +62,7 @@ This repository is being built in public in visible milestones:
 - `packages/config` — shared config baselines
 - `infra` — Docker Compose and local infra docs
 - `data/demo` — sample datasets and fixtures
+- `docs` — architecture, deployment, roadmap, and showcase scripts
 
 ## Demo direction
 
@@ -63,6 +72,29 @@ The first showcase will help an owner answer questions like:
 - What bills are due in the next 10 days?
 - Which products are slow-moving or near expiry?
 - What should I reorder and what should I delay?
+
+## Feature highlights
+
+- Postgres-first business memory for imports, ledgers, recurring obligations, documents, and action state.
+- Investigation mode with guardrails, evidence/citations, confidence, provider mode, and latency/cost metadata.
+- Model runtime modes:
+  - `local-open`
+  - `byo-cloud`
+  - `hybrid`
+- Forecast lab for baseline forecasting, deterministic scenarios, and scheduler-triggered brief generation.
+- Action center workflow states:
+  - `open`
+  - `watching`
+  - `snoozed`
+  - `resolved`
+
+## Deployment docs
+
+- Architecture: [docs/architecture.md](docs/architecture.md)
+- Deployment: [docs/deployment.md](docs/deployment.md)
+- Showcase prompts/script: [docs/showcase.md](docs/showcase.md)
+- Contributor roadmap: [docs/roadmap.md](docs/roadmap.md)
+- Demo data rules: [data/demo/README.md](data/demo/README.md)
 
 ## Privacy rule
 

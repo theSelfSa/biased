@@ -1,0 +1,15 @@
+.git
+.github
+.turbo
+node_modules
+**/node_modules
+**/.next
+**/.turbo
+**/dist
+**/build
+*.log
+coverage
+.venv
+.pytest_cache
+__pycache__
+*.pyc

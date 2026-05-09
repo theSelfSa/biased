@@ -1,30 +1,40 @@
 # Architecture Overview
 
-B.I.A.S.E.D. is split into a web app, an API service, shared contract packages, and local infrastructure.
+B.I.A.S.E.D. uses a thin web shell + thin API orchestration model around a Postgres-first business memory.
 
-## Web app
+```mermaid
+flowchart LR
+  A["Web App (Next.js PWA)"] --> B["FastAPI Service"]
+  B --> C["Postgres + pgvector"]
+  B --> D["Ollama (local-open mode)"]
+  B --> E["BYO Cloud Providers (optional)"]
+  F["Demo Fixtures"] --> C
+  G["Shared Contracts"] --> A
+  G --> B
+```
 
-- Marketing and product story
-- Better Auth session handling
-- Business workspace flows
-- Dashboard, imports, documents, actions, and AI investigation surfaces
+## Web app (`apps/web`)
 
-## API service
+- Owner workflows: imports, documents, dashboard, quick-add, action center, ask, forecast lab
+- Better Auth session integration
+- PWA delivery for Android and Windows reach
 
-- Import parsing and validation
-- Analytics and dashboard snapshots
-- Retrieval and document chunking
-- AI orchestration and investigation flows
-- Forecasting and scheduled jobs
+## API service (`apps/api`)
+
+- Import preview + confirm pipeline
+- Recurring obligations, documents, and ledger persistence
+- Investigation workflow with guardrails + citations
+- Model routing profiles (`local-open`, `byo-cloud`, `hybrid`)
+- Forecasting, scenarios, and scheduler runs
 
 ## Shared packages
 
-- Contracts: shared DTOs and zod schemas
-- UI: branded components and layout primitives
-- Config: workspace-level config baselines
+- `packages/contracts`: shared schemas, DTOs, structured AI outputs
+- `packages/ui`: reusable branded UI primitives
+- `packages/config`: shared workspace config baselines
 
-## Local infrastructure
+## Infrastructure
 
-- PostgreSQL + pgvector
-- Ollama
-- Optional self-hosted web/API runtime via Docker Compose
+- Postgres with pgvector as default retrieval store
+- Ollama for zero-cost local inference path
+- Docker Compose for full self-hosted stack
