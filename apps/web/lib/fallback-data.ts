@@ -9,7 +9,8 @@ import type {
 
 export const fallbackDashboard: DashboardSnapshot = {
   workspaceName: "Swasthya Care Pharmacy",
-  subtitle: "Owner command center for margin, stock, and recurring obligations.",
+  subtitle:
+    "Owner command center for margin, stock, and recurring obligations.",
   stats: [
     {
       label: "Monthly revenue",
@@ -77,13 +78,15 @@ export const fallbackDashboard: DashboardSnapshot = {
     {
       id: "expiry-1",
       title: "Cefixime suspension lots need action",
-      detail: "3 lots expire in 32-41 days and are moving slower than forecast.",
+      detail:
+        "3 lots expire in 32-41 days and are moving slower than forecast.",
       severity: "warning",
     },
     {
       id: "stock-1",
       title: "Paracetamol syrup is moving 18% faster",
-      detail: "Demand increased after recent flu wave. Reorder threshold hits in 6 days.",
+      detail:
+        "Demand increased after recent flu wave. Reorder threshold hits in 6 days.",
       severity: "info",
     },
   ],
@@ -91,13 +94,15 @@ export const fallbackDashboard: DashboardSnapshot = {
     {
       id: "act-1",
       title: "Reduce June reorder for low-turn dermatology SKUs",
-      detail: "Projected overstock value: ₹21K if current purchase pattern continues.",
+      detail:
+        "Projected overstock value: ₹21K if current purchase pattern continues.",
       severity: "critical",
     },
     {
       id: "act-2",
       title: "Draft distributor negotiation message",
-      detail: "Electricity and rent increases are compressing cash outlook this cycle.",
+      detail:
+        "Electricity and rent increases are compressing cash outlook this cycle.",
       severity: "warning",
     },
   ],
@@ -110,12 +115,16 @@ export const fallbackBriefing: BriefingResult = {
     "Gross margin slipped because insulin cooler electricity costs rose 14%.",
     "Two dermatology products are underperforming against reorder pace.",
   ],
-  dueToday: ["Confirm shop rent payment by 4pm", "Review distributor invoice variance"],
+  dueToday: [
+    "Confirm shop rent payment by 4pm",
+    "Review distributor invoice variance",
+  ],
   anomalies: ["Utility cost spike", "Slow movement on expiring cefixime stock"],
   suggestedActions: [
     "Reduce next reorder quantity for dermatology products by 20%",
     "Bundle expiring syrup stock into local clinic outreach",
   ],
+  generatedAt: "2026-05-09T09:00:00Z",
 };
 
 export const fallbackInvestigation: InvestigationResult = {
@@ -126,12 +135,14 @@ export const fallbackInvestigation: InvestigationResult = {
   evidence: [
     {
       label: "Electricity cost variance",
-      detail: "Electricity climbed from ₹15.6K to ₹18.2K after cooler-heavy inventory increased.",
+      detail:
+        "Electricity climbed from ₹15.6K to ₹18.2K after cooler-heavy inventory increased.",
       source: "Expense trend",
     },
     {
       label: "Low-turn dermatology stock",
-      detail: "The current purchase pace implies ₹21K of overstock if demand stays flat.",
+      detail:
+        "The current purchase pace implies ₹21K of overstock if demand stays flat.",
       source: "Inventory aging model",
     },
     {
@@ -149,6 +160,10 @@ export const fallbackInvestigation: InvestigationResult = {
     "Prioritize near-expiry stock in the next clinic outreach cycle",
     "Delay one discretionary purchase until after the next payment weekend",
   ],
+  provider: "ollama-local",
+  mode: "local-open",
+  latencyMs: 180,
+  estimatedCostUsd: 0,
 };
 
 export const fallbackDocuments: BusinessDocument[] = [
@@ -156,7 +171,8 @@ export const fallbackDocuments: BusinessDocument[] = [
     id: "doc-1",
     title: "May distributor invoice",
     kind: "invoice",
-    summary: "Primary supplier invoice with chronic-care SKU restock and cold-chain charge.",
+    summary:
+      "Primary supplier invoice with chronic-care SKU restock and cold-chain charge.",
     uploadedAt: "2026-05-02",
   },
   {

@@ -10,7 +10,9 @@ import { fallbackInvestigation } from "@/lib/fallback-data";
 
 export function InvestigationConsole() {
   const [question, setQuestion] = useState("Why did profit drop this month?");
-  const [result, setResult] = useState<InvestigationResult>(fallbackInvestigation);
+  const [result, setResult] = useState<InvestigationResult>(
+    fallbackInvestigation,
+  );
   const [loading, setLoading] = useState(false);
 
   async function handleRun() {
@@ -52,6 +54,12 @@ export function InvestigationConsole() {
         <Button disabled={loading} onClick={handleRun}>
           {loading ? "Investigating..." : "Run investigation"}
         </Button>
+
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs uppercase tracking-[0.16em] text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
+          Provider: {result.provider ?? "local-open"} • Mode:{" "}
+          {result.mode ?? "local-open"} • Latency: {result.latencyMs ?? 0}ms •
+          Est. cost: ${(result.estimatedCostUsd ?? 0).toFixed(6)}
+        </div>
       </Card>
 
       <Card className="space-y-4">
@@ -77,6 +85,20 @@ export function InvestigationConsole() {
               </p>
             </div>
           ))}
+        </div>
+
+        <div className="space-y-2">
+          <p className="text-sm font-semibold">Recommendations</p>
+          <ul className="space-y-2 text-sm text-slate-600 dark:text-slate-300">
+            {result.recommendations.map((item) => (
+              <li
+                key={item}
+                className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-white/10 dark:bg-white/5"
+              >
+                {item}
+              </li>
+            ))}
+          </ul>
         </div>
       </Card>
     </div>

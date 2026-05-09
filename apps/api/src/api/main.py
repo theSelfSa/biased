@@ -9,11 +9,14 @@ from api.config import get_settings
 from api.models import (
     ActionDraft,
     ActionCenterSnapshot,
+    ActionStatusUpdateRequest,
+    ActionStatusUpdateResponse,
     BriefingRequest,
     BriefingResult,
     BusinessDocument,
     CreateRecurringObligationRequest,
     ExpenseEntry,
+    ForecastResult,
     ForecastRequest,
     HealthResponse,
     ImportConfirmResponse,
@@ -21,16 +24,23 @@ from api.models import (
     ImportJobResponse,
     InvestigationRequest,
     InvestigationResult,
+    ModelProfile,
     ModelProviderSettings,
+    ModelProviderSettingsResponse,
     PurchaseTransaction,
     QuickAddExpenseRequest,
     QuickAddPurchaseRequest,
     QuickAddSaleRequest,
     RecurringObligation,
+    ScenarioPlannerRequest,
+    ScenarioPlannerResult,
+    SchedulerRunResult,
     SalesTransaction,
     UpdateRecurringObligationStatusRequest,
 )
 from api.services.demo_data import (
+    build_scenario_plan,
+    build_scheduler_run,
     create_recurring_obligation,
     confirm_import_job,
     draft_action,
@@ -43,12 +53,15 @@ from api.services.demo_data import (
     load_documents,
     load_recurring_obligations,
     mark_recurring_obligation_status,
+    load_model_profile,
+    save_model_profile,
     preview_upload,
     quick_add_expense,
     quick_add_purchase,
     quick_add_sale,
     store_document,
     store_import_job,
+    update_action_status,
 )
 
 settings = get_settings()
@@ -143,14 +156,21 @@ def briefing(_: BriefingRequest) -> BriefingResult:
     return generate_briefing()
 
 
-@app.post("/api/forecasts/run")
-def forecast(payload: ForecastRequest):
+@app.post("/api/forecasts/run", response_model=ForecastResult)
+def forecast(payload: ForecastRequest) -> ForecastResult:
     return generate_forecast(payload.metric, payload.horizon)
 
 
 @app.post("/api/actions/{action_id}/draft", response_model=ActionDraft)
 def action_draft(action_id: str) -> ActionDraft:
     return draft_action(action_id)
+
+
+@app.post("/api/actions/{action_id}/status", response_model=ActionStatusUpdateResponse)
+def action_status_update(
+    action_id: str, payload: ActionStatusUpdateRequest
+) -> ActionStatusUpdateResponse:
+    return update_action_status(action_id, payload)
 
 
 @app.get("/api/actions", response_model=ActionCenterSnapshot)
@@ -173,13 +193,24 @@ def quick_expense(payload: QuickAddExpenseRequest) -> ExpenseEntry:
     return quick_add_expense(payload)
 
 
-@app.post("/api/settings/model-providers")
-def model_providers(payload: ModelProviderSettings):
-    return {
-        "saved": True,
-        "mode": payload.mode,
-        "providers": payload.providers,
-    }
+@app.post("/api/settings/model-providers", response_model=ModelProviderSettingsResponse)
+def model_providers(payload: ModelProviderSettings) -> ModelProviderSettingsResponse:
+    return save_model_profile(payload)
+
+
+@app.get("/api/settings/model-providers", response_model=ModelProfile)
+def get_model_providers() -> ModelProfile:
+    return load_model_profile()
+
+
+@app.post("/api/scenarios/run", response_model=ScenarioPlannerResult)
+def run_scenario(payload: ScenarioPlannerRequest) -> ScenarioPlannerResult:
+    return build_scenario_plan(payload)
+
+
+@app.post("/api/scheduler/run", response_model=SchedulerRunResult)
+def run_scheduler() -> SchedulerRunResult:
+    return build_scheduler_run()
 
 
 def main() -> None:

@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 import io
 import json
+import math
+import time
 import uuid
 from contextlib import contextmanager
 from datetime import date, datetime, timedelta
@@ -22,21 +25,31 @@ from api.models import (
     ActionCenterItem,
     ActionCenterSnapshot,
     ActionDraft,
+    ActionStatusUpdateRequest,
+    ActionStatusUpdateResponse,
     BriefingResult,
     BusinessDocument,
     CreateRecurringObligationRequest,
     ExpenseEntry,
+    ForecastResult,
     ImportCollectionSummary,
     ImportConfirmResponse,
     ImportHistoryEntry,
     ImportLedgerSnapshot,
     ImportPreview,
     InvestigationResult,
+    ModelProfile,
+    ModelProviderSettings,
+    ModelProviderSettingsResponse,
     PurchaseTransaction,
     QuickAddExpenseRequest,
     QuickAddPurchaseRequest,
     QuickAddSaleRequest,
     RecurringObligation,
+    ScenarioDelta,
+    ScenarioPlannerRequest,
+    ScenarioPlannerResult,
+    SchedulerRunResult,
     SalesTransaction,
 )
 
@@ -95,6 +108,7 @@ def db_cursor() -> Iterator[psycopg.Cursor]:
 
 def ensure_operational_schema(cursor: psycopg.Cursor) -> None:
     cursor.execute("create extension if not exists pgcrypto")
+    cursor.execute("create extension if not exists vector")
     cursor.execute(
         """
         create table if not exists business_workspaces (
@@ -223,6 +237,59 @@ def ensure_operational_schema(cursor: psycopg.Cursor) -> None:
             workspace_id uuid not null references business_workspaces(id) on delete cascade,
             row_index integer not null,
             payload jsonb not null,
+            created_at timestamptz not null default now()
+        )
+        """
+    )
+    cursor.execute(
+        """
+        create table if not exists model_provider_settings (
+            workspace_id uuid primary key references business_workspaces(id) on delete cascade,
+            mode varchar(32) not null default 'local-open',
+            providers jsonb not null default '[]'::jsonb,
+            updated_at timestamptz not null default now()
+        )
+        """
+    )
+    cursor.execute(
+        """
+        create table if not exists document_chunks (
+            id uuid primary key,
+            workspace_id uuid not null references business_workspaces(id) on delete cascade,
+            document_id uuid not null references business_documents(id) on delete cascade,
+            chunk_index integer not null,
+            content text not null,
+            embedding vector(24) not null,
+            created_at timestamptz not null default now()
+        )
+        """
+    )
+    cursor.execute(
+        """
+        create table if not exists action_center_items (
+            id varchar(120) primary key,
+            workspace_id uuid not null references business_workspaces(id) on delete cascade,
+            title varchar(240) not null,
+            detail text not null,
+            severity varchar(32) not null,
+            action_type varchar(64) not null,
+            target_entity varchar(200) not null,
+            status varchar(32) not null default 'open',
+            snoozed_until text,
+            resolution_note text,
+            created_at timestamptz not null default now(),
+            updated_at timestamptz not null default now()
+        )
+        """
+    )
+    cursor.execute(
+        """
+        create table if not exists scheduler_runs (
+            id uuid primary key,
+            workspace_id uuid not null references business_workspaces(id) on delete cascade,
+            morning_brief_id varchar(120) not null,
+            anomaly_count integer not null default 0,
+            due_reminder_count integer not null default 0,
             created_at timestamptz not null default now()
         )
         """
@@ -356,6 +423,234 @@ def normalize_sample_value(value: Any) -> Any:
     return value
 
 
+def normalize_model_mode(value: str | None) -> str:
+    if value in {"local-open", "byo-cloud", "hybrid"}:
+        return value
+    return "local-open"
+
+
+def normalize_provider_list(providers: list[str] | None) -> list[str]:
+    if not providers:
+        return []
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for provider in providers:
+        current = provider.strip().lower()
+        if not current or current in seen:
+            continue
+        seen.add(current)
+        deduped.append(current)
+    return deduped
+
+
+def chunk_text(content: str, size: int = 280) -> list[str]:
+    cleaned = " ".join(content.split())
+    if not cleaned:
+        return []
+    chunks: list[str] = []
+    start = 0
+    while start < len(cleaned):
+        end = min(len(cleaned), start + size)
+        chunk = cleaned[start:end].strip()
+        if chunk:
+            chunks.append(chunk)
+        start += size
+    return chunks
+
+
+def embedding_for_text(content: str, dim: int = 24) -> list[float]:
+    vector = [0.0] * dim
+    tokens = content.lower().split()
+    if not tokens:
+        return vector
+    for token in tokens:
+        digest = hashlib.sha256(token.encode("utf-8")).hexdigest()
+        slot = int(digest[:8], 16) % dim
+        sign = -1.0 if int(digest[8:10], 16) % 2 else 1.0
+        weight = (int(digest[10:14], 16) % 1000) / 1000.0
+        vector[slot] += sign * (0.25 + weight)
+    norm = math.sqrt(sum(value * value for value in vector))
+    if norm == 0:
+        return vector
+    return [round(value / norm, 6) for value in vector]
+
+
+def vector_literal(vector: list[float]) -> str:
+    return "[" + ",".join(f"{value:.6f}" for value in vector) + "]"
+
+
+def guard_question(question: str) -> str | None:
+    lowered = question.lower()
+    blocked_patterns = [
+        "drop ",
+        "delete ",
+        "truncate ",
+        "alter ",
+        "grant ",
+        "revoke ",
+        ";",
+        "--",
+    ]
+    if any(pattern in lowered for pattern in blocked_patterns):
+        return (
+            "This request looks like a direct SQL control statement. "
+            "B.I.A.S.E.D. only supports safe, read-only business analytics prompts."
+        )
+    return None
+
+
+def infer_task_class(question: str) -> str:
+    lowered = question.lower()
+    if "forecast" in lowered or "predict" in lowered:
+        return "recommend"
+    if "why" in lowered or "drop" in lowered or "investigate" in lowered:
+        return "investigate"
+    return "summarize"
+
+
+def choose_provider(profile: ModelProfile, task_class: str) -> str:
+    providers = normalize_provider_list(profile.providers)
+    mode = normalize_model_mode(profile.mode)
+
+    if mode == "local-open":
+        return "ollama-local"
+    if mode == "byo-cloud":
+        if task_class == "investigate":
+            return providers[0] if providers else "openai"
+        return providers[-1] if providers else "openrouter"
+    if providers:
+        if task_class == "investigate":
+            return providers[0]
+        return "ollama-local"
+    return "ollama-local"
+
+
+def estimate_cost_usd(task_class: str, provider: str, chars: int) -> float:
+    if provider == "ollama-local":
+        return 0.0
+    base = {"summarize": 0.0008, "investigate": 0.0032, "recommend": 0.0021}.get(
+        task_class, 0.001
+    )
+    scale = max(chars, 40) / 2200
+    return round(base * scale, 6)
+
+
+def upsert_document_chunks(
+    cursor: psycopg.Cursor, workspace_id: str, document_id: str, content: str
+) -> None:
+    cursor.execute(
+        "delete from document_chunks where workspace_id = %s and document_id = %s",
+        (workspace_id, document_id),
+    )
+    chunks = chunk_text(content)
+    for index, chunk in enumerate(chunks):
+        vector = vector_literal(embedding_for_text(chunk))
+        cursor.execute(
+            """
+            insert into document_chunks (
+                id,
+                workspace_id,
+                document_id,
+                chunk_index,
+                content,
+                embedding
+            )
+            values (%s, %s, %s, %s, %s, %s::vector)
+            """,
+            (
+                str(uuid.uuid4()),
+                workspace_id,
+                document_id,
+                index,
+                chunk,
+                vector,
+            ),
+        )
+
+
+def retrieve_document_citations(
+    cursor: psycopg.Cursor, workspace_id: str, question: str, limit: int = 3
+) -> list[dict[str, str]]:
+    query_vector = vector_literal(embedding_for_text(question))
+    cursor.execute(
+        """
+        select
+            d.title,
+            c.content
+        from document_chunks c
+        inner join business_documents d on d.id = c.document_id
+        where c.workspace_id = %s
+        order by c.embedding <=> %s::vector
+        limit %s
+        """,
+        (workspace_id, query_vector, limit),
+    )
+    rows = cursor.fetchall()
+    citations: list[dict[str, str]] = []
+    for row in rows:
+        citations.append(
+            {
+                "label": f"Document: {row['title']}",
+                "detail": str(row["content"]),
+                "source": str(row["title"]),
+            }
+        )
+    return citations
+
+
+def guarded_sql_insight(
+    cursor: psycopg.Cursor, workspace_id: str, question: str
+) -> str | None:
+    lowered = question.lower()
+    if "top" in lowered and "product" in lowered and "sell" in lowered:
+        cursor.execute(
+            """
+            select
+                sku,
+                coalesce(sum(amount_inr), 0)::float as revenue
+            from sales_transactions
+            where workspace_id = %s
+            group by sku
+            order by revenue desc
+            limit 3
+            """,
+            (workspace_id,),
+        )
+        rows = cursor.fetchall()
+        if not rows:
+            return "No sales rows are available yet for a top-product summary."
+        summary = ", ".join(
+            f"{row['sku']} ({format_inr_short(to_float(row['revenue']))})"
+            for row in rows
+        )
+        return f"Top selling SKUs by revenue are {summary}."
+
+    if "expense" in lowered and ("highest" in lowered or "spike" in lowered):
+        cursor.execute(
+            """
+            select
+                category,
+                coalesce(sum(amount_inr), 0)::float as expense_total
+            from expense_entries
+            where workspace_id = %s
+            group by category
+            order by expense_total desc
+            limit 3
+            """,
+            (workspace_id,),
+        )
+        rows = cursor.fetchall()
+        if not rows:
+            return "No expense rows are available yet for category analysis."
+        summary = ", ".join(
+            f"{row['category']} ({format_inr_short(to_float(row['expense_total']))})"
+            for row in rows
+        )
+        return f"Highest expense categories right now are {summary}."
+
+    return None
+
+
 def ensure_demo_seeded() -> None:
     with db_cursor() as cursor:
         workspace = ensure_workspace(cursor)
@@ -400,6 +695,9 @@ def seed_demo_workspace_data(
 
     if reset:
         cursor.execute(
+            "delete from document_chunks where workspace_id = %s", (workspace_id,)
+        )
+        cursor.execute(
             "delete from import_job_rows where workspace_id = %s", (workspace_id,)
         )
         cursor.execute(
@@ -421,6 +719,12 @@ def seed_demo_workspace_data(
             "delete from sales_transactions where workspace_id = %s", (workspace_id,)
         )
         cursor.execute("delete from products where workspace_id = %s", (workspace_id,))
+        cursor.execute(
+            "delete from action_center_items where workspace_id = %s", (workspace_id,)
+        )
+        cursor.execute(
+            "delete from scheduler_runs where workspace_id = %s", (workspace_id,)
+        )
 
     products_path = DEMO_DIR / "pharmacy-products.csv"
     with products_path.open("r", encoding="utf-8", newline="") as handle:
@@ -666,30 +970,61 @@ def seed_demo_workspace_data(
             """,
             (workspace_id, document["title"], document["uploadedAt"]),
         )
-        if cursor.fetchone() is not None:
-            continue
-        cursor.execute(
-            """
-            insert into business_documents (
-                id,
-                workspace_id,
-                title,
-                kind,
-                summary,
-                uploaded_at,
-                stored
+        existing = cursor.fetchone()
+        if existing is not None:
+            document_id = str(existing["id"])
+            cursor.execute(
+                """
+                update business_documents
+                set kind = %s, summary = %s
+                where id = %s and workspace_id = %s
+                """,
+                (
+                    document["kind"],
+                    document["summary"],
+                    document_id,
+                    workspace_id,
+                ),
             )
-            values (%s, %s, %s, %s, %s, %s, true)
-            """,
-            (
-                str(uuid.uuid4()),
-                workspace_id,
-                document["title"],
-                document["kind"],
-                document["summary"],
-                document["uploadedAt"],
-            ),
+        else:
+            document_id = str(uuid.uuid4())
+            cursor.execute(
+                """
+                insert into business_documents (
+                    id,
+                    workspace_id,
+                    title,
+                    kind,
+                    summary,
+                    uploaded_at,
+                    stored
+                )
+                values (%s, %s, %s, %s, %s, %s, true)
+                """,
+                (
+                    document_id,
+                    workspace_id,
+                    document["title"],
+                    document["kind"],
+                    document["summary"],
+                    document["uploadedAt"],
+                ),
+            )
+        upsert_document_chunks(
+            cursor,
+            workspace_id,
+            document_id,
+            document["summary"],
         )
+
+    cursor.execute(
+        """
+        insert into model_provider_settings (workspace_id, mode, providers, updated_at)
+        values (%s, 'local-open', '[]'::jsonb, now())
+        on conflict (workspace_id) do nothing
+        """,
+        (workspace_id,),
+    )
 
 
 def map_recurring_row(row: dict[str, Any]) -> RecurringObligation:
@@ -849,6 +1184,13 @@ def store_document(kind: str, filename: str, content: bytes) -> BusinessDocument
             ),
         )
         row = cursor.fetchone()
+        if row is not None:
+            upsert_document_chunks(
+                cursor,
+                workspace_id,
+                str(row["id"]),
+                summary,
+            )
     if row is None:
         raise RuntimeError("Unable to store document.")
     return map_document_row(row)
@@ -1673,6 +2015,71 @@ def quick_add_expense(payload: QuickAddExpenseRequest) -> ExpenseEntry:
     return map_expense_row(row)
 
 
+def load_model_profile_for_cursor(
+    cursor: psycopg.Cursor, workspace_id: str
+) -> ModelProfile:
+    cursor.execute(
+        """
+        select mode, providers, updated_at
+        from model_provider_settings
+        where workspace_id = %s
+        limit 1
+        """,
+        (workspace_id,),
+    )
+    row = cursor.fetchone()
+    if row is None:
+        now_iso = datetime.utcnow().isoformat() + "Z"
+        return ModelProfile(mode="local-open", providers=[], updatedAt=now_iso)
+    return ModelProfile(
+        mode=normalize_model_mode(str(row["mode"])),
+        providers=normalize_provider_list(
+            [str(item) for item in (row.get("providers") or [])]
+        ),
+        updatedAt=row["updated_at"].isoformat(),
+    )
+
+
+def load_model_profile() -> ModelProfile:
+    ensure_demo_seeded()
+    with db_cursor() as cursor:
+        workspace_id = ensure_workspace(cursor)["id"]
+        return load_model_profile_for_cursor(cursor, workspace_id)
+
+
+def save_model_profile(payload: ModelProviderSettings) -> ModelProviderSettingsResponse:
+    ensure_demo_seeded()
+    with db_cursor() as cursor:
+        workspace_id = ensure_workspace(cursor)["id"]
+        mode = normalize_model_mode(payload.mode)
+        providers = normalize_provider_list(payload.providers)
+        cursor.execute(
+            """
+            insert into model_provider_settings (workspace_id, mode, providers, updated_at)
+            values (%s, %s, %s, now())
+            on conflict (workspace_id)
+            do update set mode = excluded.mode, providers = excluded.providers, updated_at = now()
+            returning mode, providers, updated_at
+            """,
+            (
+                workspace_id,
+                mode,
+                Json(providers),
+            ),
+        )
+        row = cursor.fetchone()
+    if row is None:
+        raise RuntimeError("Unable to save model provider settings.")
+    profile = ModelProfile(
+        mode=normalize_model_mode(str(row["mode"])),
+        providers=normalize_provider_list(
+            [str(item) for item in (row["providers"] or [])]
+        ),
+        updatedAt=row["updated_at"].isoformat(),
+    )
+    return ModelProviderSettingsResponse(saved=True, profile=profile)
+
+
 def due_days(item: RecurringObligation) -> int:
     return (parse_iso_date(item.dueDate) - date.today()).days
 
@@ -1681,11 +2088,26 @@ def format_action_amount(amount: float) -> str:
     return f"₹{amount:,.0f}"
 
 
-def build_action_queue() -> ActionCenterSnapshot:
-    obligations = load_recurring_obligations()
-    import_ledger = build_import_ledger()
-    queue: list[ActionCenterItem] = []
+def map_action_row(row: dict[str, Any]) -> ActionCenterItem:
+    return ActionCenterItem(
+        id=str(row["id"]),
+        title=str(row["title"]),
+        detail=str(row["detail"]),
+        severity=str(row["severity"]),
+        actionType=str(row["action_type"]),
+        targetEntity=str(row["target_entity"]),
+        status=str(row["status"]),
+        snoozedUntil=(str(row["snoozed_until"]) if row.get("snoozed_until") else None),
+        resolutionNote=(
+            str(row["resolution_note"]) if row.get("resolution_note") else None
+        ),
+    )
 
+
+def seed_candidate_actions(
+    obligations: list[RecurringObligation], import_ledger: ImportLedgerSnapshot
+) -> list[ActionCenterItem]:
+    queue: list[ActionCenterItem] = []
     unpaid = [item for item in obligations if item.status != "paid"]
     due_soon = sorted(unpaid, key=due_days)
 
@@ -1731,7 +2153,7 @@ def build_action_queue() -> ActionCenterSnapshot:
                 title=f"Review the latest {entry.importType.replace('_', ' ')} import",
                 detail=(
                     f"{entry.appliedCount} rows from {entry.filename} were added on "
-                    f"{entry.confirmedAt[:10]}. Use this ledger in your next investigation."
+                    f"{entry.confirmedAt[:10]}. Use this ledger in the next investigation."
                 ),
                 severity="info",
                 actionType="review_import",
@@ -1740,24 +2162,217 @@ def build_action_queue() -> ActionCenterSnapshot:
             )
         )
 
-    if not queue:
-        queue = [
-            ActionCenterItem(
-                id="watch-stock",
-                title="No urgent actions. Keep tracking slow-moving stock.",
-                detail="Your current obligations look stable. Use quick-add entries to keep decisions up to date.",
-                severity="info",
-                actionType="watchlist",
-                targetEntity="Current workspace",
-                status="watching",
+    if queue:
+        return queue
+
+    return [
+        ActionCenterItem(
+            id="watch-stock",
+            title="No urgent actions. Keep tracking slow-moving stock.",
+            detail="Your current obligations look stable. Use quick-add entries to keep decisions up to date.",
+            severity="info",
+            actionType="watchlist",
+            targetEntity="Current workspace",
+            status="watching",
+        )
+    ]
+
+
+def sync_action_center(
+    cursor: psycopg.Cursor,
+    workspace_id: str,
+    candidates: list[ActionCenterItem],
+) -> list[ActionCenterItem]:
+    active_ids = [item.id for item in candidates]
+    for item in candidates:
+        cursor.execute(
+            """
+            insert into action_center_items (
+                id,
+                workspace_id,
+                title,
+                detail,
+                severity,
+                action_type,
+                target_entity,
+                status,
+                snoozed_until,
+                resolution_note,
+                updated_at
             )
-        ]
+            values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, now())
+            on conflict (id)
+            do update set
+                title = excluded.title,
+                detail = excluded.detail,
+                severity = excluded.severity,
+                action_type = excluded.action_type,
+                target_entity = excluded.target_entity,
+                updated_at = now()
+            """,
+            (
+                item.id,
+                workspace_id,
+                item.title,
+                item.detail,
+                item.severity,
+                item.actionType,
+                item.targetEntity,
+                item.status,
+                item.snoozedUntil,
+                item.resolutionNote,
+            ),
+        )
+
+    if active_ids:
+        cursor.execute(
+            """
+            delete from action_center_items
+            where workspace_id = %s
+              and status in ('open', 'watching')
+              and not (id = any(%s::varchar[]))
+            """,
+            (workspace_id, active_ids),
+        )
+
+    cursor.execute(
+        """
+        select
+            id,
+            title,
+            detail,
+            severity,
+            action_type,
+            target_entity,
+            status,
+            snoozed_until,
+            resolution_note
+        from action_center_items
+        where workspace_id = %s
+        order by
+            case status
+                when 'open' then 0
+                when 'watching' then 1
+                when 'snoozed' then 2
+                else 3
+            end,
+            updated_at desc
+        """,
+        (workspace_id,),
+    )
+    return [map_action_row(row) for row in cursor.fetchall()]
+
+
+def build_action_queue() -> ActionCenterSnapshot:
+    ensure_demo_seeded()
+    with db_cursor() as cursor:
+        workspace_id = ensure_workspace(cursor)["id"]
+        cursor.execute(
+            """
+            select id, label, category, amount_inr, due_date, recurrence, status
+            from recurring_obligations
+            where workspace_id = %s
+            """,
+            (workspace_id,),
+        )
+        obligations = sort_obligations(
+            [map_recurring_row(row) for row in cursor.fetchall()]
+        )
+        import_ledger = build_import_ledger()
+        candidates = seed_candidate_actions(obligations, import_ledger)
+        queue = sync_action_center(cursor, workspace_id, candidates)
 
     headline = (
         "Focus first on obligations that can tighten cash, then use the imported ledgers "
         "to validate what changed most recently."
     )
     return ActionCenterSnapshot(headline=headline, items=queue)
+
+
+def update_action_status(
+    action_id: str, payload: ActionStatusUpdateRequest
+) -> ActionStatusUpdateResponse:
+    ensure_demo_seeded()
+    with db_cursor() as cursor:
+        workspace_id = ensure_workspace(cursor)["id"]
+        normalized_status = payload.status.strip().lower()
+        if normalized_status not in {"open", "watching", "snoozed", "resolved"}:
+            normalized_status = "watching"
+
+        snoozed_until = payload.snoozeUntil if normalized_status == "snoozed" else None
+        resolution_note = (
+            payload.resolutionNote if normalized_status == "resolved" else None
+        )
+        cursor.execute(
+            """
+            update action_center_items
+            set
+                status = %s,
+                snoozed_until = %s,
+                resolution_note = %s,
+                updated_at = now()
+            where id = %s and workspace_id = %s
+            returning
+                id,
+                title,
+                detail,
+                severity,
+                action_type,
+                target_entity,
+                status,
+                snoozed_until,
+                resolution_note
+            """,
+            (
+                normalized_status,
+                snoozed_until,
+                resolution_note,
+                action_id,
+                workspace_id,
+            ),
+        )
+        row = cursor.fetchone()
+        if row is None:
+            cursor.execute(
+                """
+                insert into action_center_items (
+                    id,
+                    workspace_id,
+                    title,
+                    detail,
+                    severity,
+                    action_type,
+                    target_entity,
+                    status,
+                    snoozed_until,
+                    resolution_note
+                )
+                values (%s, %s, %s, %s, 'info', 'manual_review', 'Manual action', %s, %s, %s)
+                returning
+                    id,
+                    title,
+                    detail,
+                    severity,
+                    action_type,
+                    target_entity,
+                    status,
+                    snoozed_until,
+                    resolution_note
+                """,
+                (
+                    action_id,
+                    workspace_id,
+                    "Manual action entry",
+                    "Action was manually added during status update.",
+                    normalized_status,
+                    snoozed_until,
+                    resolution_note,
+                ),
+            )
+            row = cursor.fetchone()
+    if row is None:
+        raise RuntimeError("Unable to update action status.")
+    return ActionStatusUpdateResponse(updated=True, item=map_action_row(row))
 
 
 def load_dashboard() -> dict[str, Any]:
@@ -1963,13 +2578,57 @@ def generate_briefing() -> BriefingResult:
         or [
             "Add today's sales, purchases, and expenses to tighten tomorrow's recommendations."
         ],
+        generatedAt=datetime.utcnow().isoformat() + "Z",
     )
 
 
 def generate_investigation(question: str) -> InvestigationResult:
+    started_at = time.perf_counter()
+    refusal = guard_question(question)
+    if refusal:
+        return InvestigationResult(
+            question=question,
+            summary=refusal,
+            confidence=0.98,
+            evidence=[
+                {
+                    "label": "Guardrail policy",
+                    "detail": "Only safe, read-only business analytics prompts are supported.",
+                    "source": "query_guardrails",
+                }
+            ],
+            risks=["Unsafe query attempt blocked."],
+            recommendations=[
+                "Ask business questions such as 'why did profit drop?' or 'top selling SKUs this month'."
+            ],
+            provider="policy-guard",
+            mode="local-open",
+            latencyMs=int((time.perf_counter() - started_at) * 1000),
+            estimatedCostUsd=0.0,
+        )
+
     ensure_demo_seeded()
     with db_cursor() as cursor:
         workspace_id = ensure_workspace(cursor)["id"]
+        profile = load_model_profile_for_cursor(cursor, workspace_id)
+        task_class = infer_task_class(question)
+        provider = choose_provider(profile, task_class)
+        sql_insight = guarded_sql_insight(cursor, workspace_id, question)
+        citations = retrieve_document_citations(cursor, workspace_id, question, limit=2)
+
+        cursor.execute(
+            """
+            select
+                coalesce(sum(amount_inr), 0)::float as revenue_total,
+                coalesce(avg(margin_pct), 0)::float as avg_margin
+            from sales_transactions
+            where workspace_id = %s
+            """,
+            (workspace_id,),
+        )
+        revenue_stats = cursor.fetchone() or {"revenue_total": 0.0, "avg_margin": 0.0}
+        revenue_total = to_float(revenue_stats["revenue_total"])
+        avg_margin = to_float(revenue_stats["avg_margin"])
         cursor.execute(
             """
             select coalesce(avg(amount_inr), 0)::float as utility_avg
@@ -2001,36 +2660,334 @@ def generate_investigation(question: str) -> InvestigationResult:
         )
         near_expiry = int((cursor.fetchone() or {}).get("near_expiry_count") or 0)
 
-    payload = load_json("pharmacy-investigation.json")
-    payload["question"] = question
-    payload["evidence"][0]["detail"] = (
-        f"Average utility burden is ₹{utility_avg:,.0f}, with the latest cycle materially higher due to cooling demand."
+    evidence = [
+        {
+            "label": "Utility pressure",
+            "detail": f"Average utility burden is ₹{utility_avg:,.0f} this cycle.",
+            "source": "expense_entries.utilities",
+        },
+        {
+            "label": "Supplier cash pressure",
+            "detail": f"₹{upcoming_supplier:,.0f} is the largest upcoming supplier obligation.",
+            "source": "recurring_obligations.supplier",
+        },
+        {
+            "label": "Near-expiry risk",
+            "detail": f"{near_expiry} product lots are inside the next 45-day near-expiry window.",
+            "source": "products.expiry_window_45d",
+        },
+    ]
+    if sql_insight:
+        evidence.append(
+            {
+                "label": "Guarded SQL summary",
+                "detail": sql_insight,
+                "source": "safe_sql_assistant",
+            }
+        )
+    evidence.extend(citations)
+
+    confidence = 0.82 + (0.04 if citations else 0.0) + (0.03 if sql_insight else 0.0)
+    confidence = min(0.96, round(confidence, 2))
+    latency_ms = int((time.perf_counter() - started_at) * 1000)
+    estimated_cost = estimate_cost_usd(task_class, provider, len(question))
+
+    summary = (
+        "Profit pressure is mainly from rising operating costs and near-term supplier cash "
+        f"obligations while tracked revenue is {format_inr_short(revenue_total)}."
     )
-    payload["evidence"][1]["detail"] = (
-        f"₹{upcoming_supplier:,.0f} is the largest upcoming supplier obligation in the current cycle."
+    if avg_margin < 22:
+        summary = (
+            "Profit pressure is elevated because margin is slipping below 22% while recurring "
+            "supplier and utility costs remain high."
+        )
+
+    return InvestigationResult(
+        question=question,
+        summary=summary,
+        confidence=confidence,
+        evidence=evidence,
+        risks=[
+            "Recurring supplier and utility costs can compress short-term cash.",
+            "Near-expiry inventory can force discounting and reduce realized margin.",
+        ],
+        recommendations=[
+            "Prioritize near-expiry SKUs in the next local promotion cycle.",
+            "Delay low-priority reorders until after high-value supplier dues are cleared.",
+            "Review expense categories weekly using the guarded SQL assistant prompts.",
+        ],
+        provider=provider,
+        mode=profile.mode,
+        latencyMs=latency_ms,
+        estimatedCostUsd=estimated_cost,
     )
-    payload["evidence"][2]["detail"] = (
-        f"{near_expiry} product lots fall inside the near-expiry watch window for the next 45 days."
-    )
-    return InvestigationResult(**payload)
 
 
-def generate_forecast(metric: str, horizon: str):
-    return {
-        "metric": metric,
-        "horizon": horizon,
-        "baseline": "Recent weekly sales average: ₹1.98L",
-        "projectedRange": "₹1.9L - ₹2.18L per week",
-        "assumptions": [
-            "Weekend OTC demand remains elevated",
-            "No major supplier disruption hits the next cycle",
-            "Fast-moving fever and pain SKUs continue at the current pace",
+def generate_forecast(metric: str, horizon: str) -> ForecastResult:
+    ensure_demo_seeded()
+    horizon_days = 30
+    if horizon.endswith("d") and horizon[:-1].isdigit():
+        horizon_days = max(7, min(180, int(horizon[:-1])))
+
+    with db_cursor() as cursor:
+        workspace_id = ensure_workspace(cursor)["id"]
+
+        cursor.execute(
+            """
+            select date, coalesce(sum(amount_inr), 0)::float as daily_total
+            from sales_transactions
+            where workspace_id = %s
+            group by date
+            order by date asc
+            """,
+            (workspace_id,),
+        )
+        sales_rows = cursor.fetchall()
+        daily_sales = [to_float(row["daily_total"]) for row in sales_rows]
+
+        cursor.execute(
+            """
+            select date, coalesce(sum(amount_inr), 0)::float as daily_total
+            from purchase_transactions
+            where workspace_id = %s
+            group by date
+            order by date asc
+            """,
+            (workspace_id,),
+        )
+        purchase_rows = cursor.fetchall()
+        daily_purchases = [to_float(row["daily_total"]) for row in purchase_rows]
+
+        cursor.execute(
+            """
+            select occurred_on, coalesce(sum(amount_inr), 0)::float as daily_total
+            from expense_entries
+            where workspace_id = %s
+            group by occurred_on
+            order by occurred_on asc
+            """,
+            (workspace_id,),
+        )
+        expense_rows = cursor.fetchall()
+        daily_expenses = [to_float(row["daily_total"]) for row in expense_rows]
+
+        cursor.execute(
+            """
+            select coalesce(sum(amount_inr), 0)::float as recurring_due
+            from recurring_obligations
+            where workspace_id = %s and status <> 'paid'
+            """,
+            (workspace_id,),
+        )
+        recurring_due = to_float((cursor.fetchone() or {}).get("recurring_due"))
+
+    def moving_average(values: list[float], window: int) -> float:
+        if not values:
+            return 0.0
+        sample = values[-window:] if len(values) >= window else values
+        return sum(sample) / len(sample)
+
+    sales_avg = moving_average(daily_sales, 5)
+    purchases_avg = moving_average(daily_purchases, 5)
+    expenses_avg = moving_average(daily_expenses, 5)
+    seasonal_factor = 1.06 if horizon_days <= 45 else 1.03
+
+    metric_key = metric.lower()
+    if metric_key not in {"sales", "purchases", "recurring", "cash"}:
+        metric_key = "sales"
+
+    if metric_key == "sales":
+        projected_low = sales_avg * 0.94
+        projected_high = sales_avg * seasonal_factor
+        baseline = f"Recent daily sales moving average: {format_inr_short(sales_avg)}"
+        projected_range = f"{format_inr_short(projected_low)} to {format_inr_short(projected_high)} per day"
+        warnings = [
+            "Sales projection assumes similar OTC demand velocity.",
+            "Projection drops if near-expiry stock is not rotated faster.",
+        ]
+    elif metric_key == "purchases":
+        projected_low = purchases_avg * 0.88
+        projected_high = purchases_avg * 1.08
+        baseline = (
+            f"Recent daily purchase moving average: {format_inr_short(purchases_avg)}"
+        )
+        projected_range = f"{format_inr_short(projected_low)} to {format_inr_short(projected_high)} per day"
+        warnings = [
+            "Higher supplier dues may require staggered procurement.",
+            "Underperforming lines should not be reordered at baseline pace.",
+        ]
+    elif metric_key == "recurring":
+        projected_low = recurring_due * 0.95
+        projected_high = recurring_due * 1.1
+        baseline = (
+            f"Current unpaid recurring obligations: {format_inr_short(recurring_due)}"
+        )
+        projected_range = f"{format_inr_short(projected_low)} to {format_inr_short(projected_high)} in next {horizon_days} days"
+        warnings = [
+            "Utility and rent changes can widen this band quickly.",
+            "Treat supplier obligations as high-priority cash events.",
+        ]
+    else:
+        cash_runway = sales_avg - purchases_avg - expenses_avg
+        projected_low = cash_runway * 0.8
+        projected_high = cash_runway * 1.15
+        baseline = f"Current daily cash delta baseline: {format_inr_short(cash_runway)}"
+        projected_range = f"{format_inr_short(projected_low)} to {format_inr_short(projected_high)} per day"
+        warnings = [
+            "Cash projection assumes recurring dues are managed on time.",
+            "Delayed supplier payment can protect cash short term but raise reorder risk.",
+        ]
+
+    return ForecastResult(
+        metric=metric_key,
+        horizon=f"{horizon_days}d",
+        baseline=baseline,
+        projectedRange=projected_range,
+        assumptions=[
+            "Moving-average baseline over recent transactional history.",
+            "Light seasonality uplift for short-horizon pharmacy demand.",
+            "No abrupt structural shift in supplier availability.",
         ],
-        "warnings": [
-            "Gross margin stays under pressure if utility costs remain elevated",
-            "Slow dermatology stock should not be reordered at the same cadence",
-        ],
-    }
+        warnings=warnings,
+    )
+
+
+def build_scenario_plan(payload: ScenarioPlannerRequest) -> ScenarioPlannerResult:
+    forecast_sales = generate_forecast("sales", f"{payload.horizonDays}d")
+    forecast_cash = generate_forecast("cash", f"{payload.horizonDays}d")
+
+    summary = "Scenario generated using deterministic baseline deltas."
+    deltas: list[ScenarioDelta] = []
+    recommendations: list[str] = []
+
+    if payload.scenarioType == "supplier_price_increase":
+        summary = f"Supplier price increase scenario at +{payload.percentage:.1f}%."
+        deltas = [
+            ScenarioDelta(
+                metric="Purchase cost",
+                baseline=forecast_sales.baseline,
+                projected=f"+{payload.percentage:.1f}% relative cost pressure",
+                impact="Gross margin compression risk increases.",
+            ),
+            ScenarioDelta(
+                metric="Cash runway",
+                baseline=forecast_cash.baseline,
+                projected="Lower buffer due to procurement inflation.",
+                impact="Prioritize high-turn SKUs only.",
+            ),
+        ]
+        recommendations = [
+            "Shift reorder budget toward high-turn and higher-margin SKUs.",
+            "Negotiate staggered payment terms on supplier dues.",
+        ]
+    elif payload.scenarioType == "underperforming_product_line":
+        summary = "Underperforming line scenario with slower sell-through."
+        deltas = [
+            ScenarioDelta(
+                metric="Inventory carry",
+                baseline="Current carry aligned to recent demand",
+                projected=f"Carry risk grows by roughly {payload.percentage:.1f}%",
+                impact="Dead stock and expiry risk rises.",
+            ),
+            ScenarioDelta(
+                metric="Margin realization",
+                baseline="Current margin trajectory",
+                projected="Potential markdown-driven margin erosion.",
+                impact="Profit conversion declines.",
+            ),
+        ]
+        recommendations = [
+            "Reduce reorder frequency for underperforming categories.",
+            "Run targeted movement campaigns for aging lots.",
+        ]
+    elif payload.scenarioType == "delayed_reorder":
+        summary = (
+            "Delayed reorder scenario balancing cash protection and stockout risk."
+        )
+        deltas = [
+            ScenarioDelta(
+                metric="Short-term cash",
+                baseline=forecast_cash.baseline,
+                projected=f"Improves by ~{payload.percentage:.1f}% temporarily",
+                impact="Cash buffer improves in near term.",
+            ),
+            ScenarioDelta(
+                metric="Stockout probability",
+                baseline="Current service level",
+                projected="Higher risk for fast-moving SKUs.",
+                impact="Potential missed revenue days.",
+            ),
+        ]
+        recommendations = [
+            "Delay reorder only for low-turn SKUs.",
+            "Protect minimum stock thresholds for high-turn essentials.",
+        ]
+    else:
+        summary = "Rent/electricity increase scenario with fixed-cost pressure."
+        deltas = [
+            ScenarioDelta(
+                metric="Recurring overhead",
+                baseline="Current recurring obligation baseline",
+                projected=f"+{payload.percentage:.1f}% fixed-cost burden",
+                impact="Lower net cash conversion.",
+            ),
+            ScenarioDelta(
+                metric="Break-even threshold",
+                baseline="Current daily break-even level",
+                projected="Higher required daily revenue.",
+                impact="More pressure on margin discipline.",
+            ),
+        ]
+        recommendations = [
+            "Review non-essential operating spend for offset opportunities.",
+            "Increase focus on better-margin product categories.",
+        ]
+
+    return ScenarioPlannerResult(
+        scenarioType=payload.scenarioType,
+        horizonDays=payload.horizonDays,
+        summary=summary,
+        deltas=deltas,
+        recommendations=recommendations,
+    )
+
+
+def build_scheduler_run() -> SchedulerRunResult:
+    ensure_demo_seeded()
+    briefing = generate_briefing()
+    with db_cursor() as cursor:
+        workspace_id = ensure_workspace(cursor)["id"]
+        anomaly_count = len(briefing.anomalies)
+        due_count = len(briefing.dueToday)
+        morning_brief_id = f"brief-{uuid.uuid4().hex[:10]}"
+        cursor.execute(
+            """
+            insert into scheduler_runs (
+                id,
+                workspace_id,
+                morning_brief_id,
+                anomaly_count,
+                due_reminder_count
+            )
+            values (%s, %s, %s, %s, %s)
+            returning created_at
+            """,
+            (
+                str(uuid.uuid4()),
+                workspace_id,
+                morning_brief_id,
+                anomaly_count,
+                due_count,
+            ),
+        )
+        row = cursor.fetchone()
+    created_at = row["created_at"].isoformat() if row else datetime.utcnow().isoformat()
+    return SchedulerRunResult(
+        generatedAt=created_at,
+        morningBriefId=morning_brief_id,
+        anomalyCount=anomaly_count,
+        dueReminderCount=due_count,
+    )
 
 
 def draft_action(action_id: str) -> ActionDraft:
@@ -2075,6 +3032,18 @@ def draft_action(action_id: str) -> ActionDraft:
                 "and use the updated history in the next margin or cash-flow investigation."
             ),
             approvalRequired=False,
+        )
+
+    if item.status == "snoozed":
+        return ActionDraft(
+            actionType=item.actionType,
+            targetEntity=item.targetEntity,
+            rationale="This action is snoozed and should be revalidated before execution.",
+            draftText=(
+                f"Before acting on {item.targetEntity}, re-check whether the original trigger "
+                f"still applies and unsnooze if it is still operationally relevant."
+            ),
+            approvalRequired=True,
         )
 
     return ActionDraft(

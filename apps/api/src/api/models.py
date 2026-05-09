@@ -101,6 +101,10 @@ class InvestigationResult(BaseModel):
     evidence: list[InvestigationEvidence]
     risks: list[str]
     recommendations: list[str]
+    provider: str | None = None
+    mode: str | None = None
+    latencyMs: int | None = None
+    estimatedCostUsd: float | None = None
 
 
 class BriefingRequest(BaseModel):
@@ -113,6 +117,7 @@ class BriefingResult(BaseModel):
     dueToday: list[str]
     anomalies: list[str]
     suggestedActions: list[str]
+    generatedAt: str | None = None
 
 
 class ForecastRequest(BaseModel):
@@ -145,6 +150,8 @@ class ActionCenterItem(BaseModel):
     actionType: str
     targetEntity: str
     status: str
+    snoozedUntil: str | None = None
+    resolutionNote: str | None = None
 
 
 class ActionCenterSnapshot(BaseModel):
@@ -155,6 +162,17 @@ class ActionCenterSnapshot(BaseModel):
 class ModelProviderSettings(BaseModel):
     mode: str
     providers: list[str] = Field(default_factory=list)
+
+
+class ModelProfile(BaseModel):
+    mode: str
+    providers: list[str] = Field(default_factory=list)
+    updatedAt: str
+
+
+class ModelProviderSettingsResponse(BaseModel):
+    saved: bool
+    profile: ModelProfile
 
 
 class SalesTransaction(BaseModel):
@@ -208,3 +226,42 @@ class QuickAddExpenseRequest(BaseModel):
     label: str
     category: str
     amountInr: float = Field(ge=0)
+
+
+class ActionStatusUpdateRequest(BaseModel):
+    status: str
+    snoozeUntil: str | None = None
+    resolutionNote: str | None = None
+
+
+class ActionStatusUpdateResponse(BaseModel):
+    updated: bool
+    item: ActionCenterItem
+
+
+class ScenarioPlannerRequest(BaseModel):
+    scenarioType: str
+    horizonDays: int = Field(default=30, ge=7, le=180)
+    percentage: float = Field(default=10, ge=0, le=100)
+
+
+class ScenarioDelta(BaseModel):
+    metric: str
+    baseline: str
+    projected: str
+    impact: str
+
+
+class ScenarioPlannerResult(BaseModel):
+    scenarioType: str
+    horizonDays: int
+    summary: str
+    deltas: list[ScenarioDelta]
+    recommendations: list[str]
+
+
+class SchedulerRunResult(BaseModel):
+    generatedAt: str
+    morningBriefId: str
+    anomalyCount: int
+    dueReminderCount: int

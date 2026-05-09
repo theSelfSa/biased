@@ -6,8 +6,14 @@ export type MemberRole = z.infer<typeof memberRoleSchema>;
 export const recurrenceSchema = z.enum(["monthly", "quarterly", "annual"]);
 export type Recurrence = z.infer<typeof recurrenceSchema>;
 
-export const recurringObligationStatusSchema = z.enum(["due", "paid", "scheduled"]);
-export type RecurringObligationStatus = z.infer<typeof recurringObligationStatusSchema>;
+export const recurringObligationStatusSchema = z.enum([
+  "due",
+  "paid",
+  "scheduled",
+]);
+export type RecurringObligationStatus = z.infer<
+  typeof recurringObligationStatusSchema
+>;
 
 export const supplierSchema = z.object({
   id: z.string(),
@@ -155,7 +161,9 @@ export type BusinessDocument = z.infer<typeof businessDocumentSchema>;
 export const documentUploadResponseSchema = businessDocumentSchema.extend({
   stored: z.boolean().default(true),
 });
-export type DocumentUploadResponse = z.infer<typeof documentUploadResponseSchema>;
+export type DocumentUploadResponse = z.infer<
+  typeof documentUploadResponseSchema
+>;
 
 export const investigationResultSchema = z.object({
   question: z.string(),
@@ -170,6 +178,10 @@ export const investigationResultSchema = z.object({
   ),
   risks: z.array(z.string()),
   recommendations: z.array(z.string()),
+  provider: z.string().optional(),
+  mode: z.enum(["local-open", "byo-cloud", "hybrid"]).optional(),
+  latencyMs: z.number().int().optional(),
+  estimatedCostUsd: z.number().min(0).optional(),
 });
 export type InvestigationResult = z.infer<typeof investigationResultSchema>;
 
@@ -179,6 +191,7 @@ export const briefingResultSchema = z.object({
   dueToday: z.array(z.string()),
   anomalies: z.array(z.string()),
   suggestedActions: z.array(z.string()),
+  generatedAt: z.string().optional(),
 });
 export type BriefingResult = z.infer<typeof briefingResultSchema>;
 
@@ -204,7 +217,9 @@ export type ActionDraft = z.infer<typeof actionDraftSchema>;
 export const actionCenterItemSchema = insightSchema.extend({
   actionType: z.string(),
   targetEntity: z.string(),
-  status: z.enum(["open", "watching", "resolved"]),
+  status: z.enum(["open", "watching", "snoozed", "resolved"]),
+  snoozedUntil: z.string().nullable().optional(),
+  resolutionNote: z.string().nullable().optional(),
 });
 export type ActionCenterItem = z.infer<typeof actionCenterItemSchema>;
 
@@ -252,10 +267,98 @@ export const importCollectionSummarySchema = z.object({
   columns: z.array(z.string()),
   sampleRows: z.array(z.record(z.string(), z.unknown())),
 });
-export type ImportCollectionSummary = z.infer<typeof importCollectionSummarySchema>;
+export type ImportCollectionSummary = z.infer<
+  typeof importCollectionSummarySchema
+>;
 
 export const importLedgerSnapshotSchema = z.object({
   history: z.array(importHistoryEntrySchema),
   collections: z.array(importCollectionSummarySchema),
 });
 export type ImportLedgerSnapshot = z.infer<typeof importLedgerSnapshotSchema>;
+
+export const modelProviderModeSchema = z.enum([
+  "local-open",
+  "byo-cloud",
+  "hybrid",
+]);
+export type ModelProviderMode = z.infer<typeof modelProviderModeSchema>;
+
+export const modelProfileSchema = z.object({
+  mode: modelProviderModeSchema,
+  providers: z.array(z.string()),
+  updatedAt: z.string(),
+});
+export type ModelProfile = z.infer<typeof modelProfileSchema>;
+
+export const modelProviderSettingsInputSchema = z.object({
+  mode: modelProviderModeSchema,
+  providers: z.array(z.string()),
+});
+export type ModelProviderSettingsInput = z.infer<
+  typeof modelProviderSettingsInputSchema
+>;
+
+export const modelProviderSettingsResponseSchema = z.object({
+  saved: z.boolean(),
+  profile: modelProfileSchema,
+});
+export type ModelProviderSettingsResponse = z.infer<
+  typeof modelProviderSettingsResponseSchema
+>;
+
+export const actionStatusUpdateInputSchema = z.object({
+  status: z.enum(["open", "watching", "snoozed", "resolved"]),
+  snoozeUntil: z.string().optional(),
+  resolutionNote: z.string().optional(),
+});
+export type ActionStatusUpdateInput = z.infer<
+  typeof actionStatusUpdateInputSchema
+>;
+
+export const actionStatusUpdateResponseSchema = z.object({
+  updated: z.boolean(),
+  item: actionCenterItemSchema,
+});
+export type ActionStatusUpdateResponse = z.infer<
+  typeof actionStatusUpdateResponseSchema
+>;
+
+export const scenarioPlannerRequestSchema = z.object({
+  scenarioType: z.enum([
+    "supplier_price_increase",
+    "underperforming_product_line",
+    "delayed_reorder",
+    "rent_electricity_increase",
+  ]),
+  horizonDays: z.number().int().min(7).max(180).default(30),
+  percentage: z.number().min(0).max(100).default(10),
+});
+export type ScenarioPlannerRequest = z.infer<
+  typeof scenarioPlannerRequestSchema
+>;
+
+export const scenarioDeltaSchema = z.object({
+  metric: z.string(),
+  baseline: z.string(),
+  projected: z.string(),
+  impact: z.string(),
+});
+export type ScenarioDelta = z.infer<typeof scenarioDeltaSchema>;
+
+export const scenarioPlannerResultSchema = z.object({
+  scenarioType: scenarioPlannerRequestSchema.shape.scenarioType,
+  horizonDays: z.number(),
+  summary: z.string(),
+  deltas: z.array(scenarioDeltaSchema),
+  recommendations: z.array(z.string()),
+});
+export type ScenarioPlannerResult = z.infer<typeof scenarioPlannerResultSchema>;
+
+export const schedulerRunResultSchema = z.object({
+  generatedAt: z.string(),
+  morningBriefId: z.string(),
+  anomalyCount: z.number().int(),
+  dueReminderCount: z.number().int(),
+});
+export type SchedulerRunResult = z.infer<typeof schedulerRunResultSchema>;
