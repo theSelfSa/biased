@@ -2,6 +2,13 @@
 
 All notable changes to B.I.A.S.E.D. are documented in this file.
 
+## Unreleased
+
+### Changed
+
+- Aligned workspace and API version metadata to `1.0.0` to match the public `v1.0.0-showcase` release baseline.
+- Replaced placeholder test scripts with smoke-check commands (`pnpm test` now executes type-level checks in active workspace packages).
+
 ## v1.0.0-showcase - 2026-05-09
 
 ### Added

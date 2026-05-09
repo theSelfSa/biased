@@ -110,6 +110,10 @@ Suggested walkthrough question set:
   - `v0.5.0-milestone-d`
   - `v1.0.0-showcase`
 - Ongoing development: testing depth, UX hardening, and contributor-focused expansion.
+ 
+### Versioning note
+- Milestone tags in Git are the public release checkpoints.
+- Workspace and API manifests are aligned to the `1.0.0` baseline to match the current showcase release track.
 
 For release details, see [CHANGELOG.md](CHANGELOG.md).
 
