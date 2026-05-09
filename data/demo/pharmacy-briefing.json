@@ -1,0 +1,20 @@
+{
+  "headline": "Cash is stable, but margin is softening on chronic care products.",
+  "items": [
+    "Yesterday closed at \u20b928.4K sales with stronger OTC demand.",
+    "Gross margin slipped because insulin cooler electricity costs rose 14%.",
+    "Two dermatology products are underperforming against reorder pace."
+  ],
+  "dueToday": [
+    "Confirm shop rent payment by 4pm",
+    "Review distributor invoice variance"
+  ],
+  "anomalies": [
+    "Utility cost spike",
+    "Slow movement on expiring cefixime stock"
+  ],
+  "suggestedActions": [
+    "Reduce next reorder quantity for dermatology products by 20%",
+    "Bundle expiring syrup stock into local clinic outreach"
+  ]
+}

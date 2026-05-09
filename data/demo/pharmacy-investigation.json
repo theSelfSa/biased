@@ -1,0 +1,31 @@
+{
+  "question": "Why did profit drop this month?",
+  "summary": "Profit softened because fixed overhead rose while a few chronic-care SKUs sold with lower realized margin, and one upcoming distributor payment is compressing short-term cash.",
+  "confidence": 0.87,
+  "evidence": [
+    {
+      "label": "Electricity cost variance",
+      "detail": "placeholder",
+      "source": "Expense trend"
+    },
+    {
+      "label": "Upcoming supplier payment",
+      "detail": "placeholder",
+      "source": "Recurring obligations ledger"
+    },
+    {
+      "label": "Near-expiry stock pressure",
+      "detail": "placeholder",
+      "source": "Inventory watchlist"
+    }
+  ],
+  "risks": [
+    "Margin can slip further if slow-moving stock is not rebalanced",
+    "Cash buffer narrows if recurring bills and supplier payments land together"
+  ],
+  "recommendations": [
+    "Trim June reorder quantities on slow dermatology SKUs",
+    "Prioritize near-expiry stock in the next clinic outreach cycle",
+    "Delay one discretionary purchase until after the next payment weekend"
+  ]
+}

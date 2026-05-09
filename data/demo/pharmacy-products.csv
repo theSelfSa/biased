@@ -1,0 +1,6 @@
+sku,name,category,unit_price_inr,quantity_on_hand,expires_on
+PCM-500,Paracetamol 500mg Tablets,Pain Relief,35,420,2027-01-15
+CFX-SYR,Cefixime Suspension,Antibiotic,94,86,2026-06-28
+AZI-250,Azithromycin 250mg,Antibiotic,128,64,2026-07-12
+DERM-GEL,Skin Relief Gel,Dermatology,210,58,2026-09-04
+INS-CLD,Insulin Cartridge,Cold Chain,640,31,2026-12-30

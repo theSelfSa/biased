@@ -1,0 +1,24 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: biased-postgres
+    environment:
+      POSTGRES_DB: biased
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - biased-postgres-data:/var/lib/postgresql/data
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: biased-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - biased-ollama-data:/root/.ollama
+
+volumes:
+  biased-postgres-data:
+  biased-ollama-data:

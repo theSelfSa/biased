@@ -1,0 +1,95 @@
+{
+  "workspaceName": "Swasthya Care Pharmacy",
+  "subtitle": "Owner command center for margin, stock, and recurring obligations.",
+  "stats": [
+    {
+      "label": "Monthly revenue",
+      "value": "\u20b98.4L",
+      "delta": "+12.5% vs last month",
+      "tone": "positive"
+    },
+    {
+      "label": "Gross margin",
+      "value": "23.8%",
+      "delta": "-1.9 pts on chronic care SKUs",
+      "tone": "warning"
+    },
+    {
+      "label": "Bills due in 10 days",
+      "value": "\u20b91.27L",
+      "delta": "Rent, electricity, distributor payment",
+      "tone": "critical"
+    },
+    {
+      "label": "Near-expiry inventory",
+      "value": "\u20b948K",
+      "delta": "11 lots expiring within 45 days",
+      "tone": "warning"
+    }
+  ],
+  "marginSeries": [
+    { "label": "Jan", "revenueInr": 640000, "marginPct": 24.9 },
+    { "label": "Feb", "revenueInr": 675000, "marginPct": 24.4 },
+    { "label": "Mar", "revenueInr": 702000, "marginPct": 24.1 },
+    { "label": "Apr", "revenueInr": 731000, "marginPct": 23.9 },
+    { "label": "May", "revenueInr": 790000, "marginPct": 23.6 },
+    { "label": "Jun", "revenueInr": 840000, "marginPct": 23.8 }
+  ],
+  "obligations": [
+    {
+      "id": "rent",
+      "label": "Shop rent",
+      "category": "Facility",
+      "amountInr": 55000,
+      "dueDate": "2026-05-11",
+      "recurrence": "monthly",
+      "status": "due"
+    },
+    {
+      "id": "power",
+      "label": "Electricity bill",
+      "category": "Utilities",
+      "amountInr": 18200,
+      "dueDate": "2026-05-14",
+      "recurrence": "monthly",
+      "status": "due"
+    },
+    {
+      "id": "supplier",
+      "label": "Primary distributor payment",
+      "category": "Supplier",
+      "amountInr": 53800,
+      "dueDate": "2026-05-16",
+      "recurrence": "monthly",
+      "status": "scheduled"
+    }
+  ],
+  "inventoryAlerts": [
+    {
+      "id": "expiry-1",
+      "title": "Cefixime suspension lots need action",
+      "detail": "3 lots expire in 32-41 days and are moving slower than forecast.",
+      "severity": "warning"
+    },
+    {
+      "id": "stock-1",
+      "title": "Paracetamol syrup is moving 18% faster",
+      "detail": "Demand increased after recent flu wave. Reorder threshold hits in 6 days.",
+      "severity": "info"
+    }
+  ],
+  "actionQueue": [
+    {
+      "id": "act-1",
+      "title": "Reduce June reorder for low-turn dermatology SKUs",
+      "detail": "Projected overstock value: \u20b921K if current purchase pattern continues.",
+      "severity": "critical"
+    },
+    {
+      "id": "act-2",
+      "title": "Draft distributor negotiation message",
+      "detail": "Electricity and rent increases are compressing cash outlook this cycle.",
+      "severity": "warning"
+    }
+  ]
+}

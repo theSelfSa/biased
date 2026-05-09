@@ -1,0 +1,5 @@
+label,category,amount_inr,due_date,recurrence,status
+Shop rent,Facility,55000,2026-05-11,monthly,due
+Electricity bill,Utilities,18200,2026-05-14,monthly,due
+Primary distributor payment,Supplier,53800,2026-05-16,monthly,scheduled
+Internet and software,Operations,4200,2026-05-20,monthly,scheduled

@@ -1,0 +1,33 @@
+{
+  "name": "biased",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Open-source AI decision intelligence platform for SMB owners.",
+  "license": "Apache-2.0",
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=24",
+    "pnpm": ">=10"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev --parallel",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "format": "prettier --write . && uv run --with ruff ruff format apps/api",
+    "format:check": "prettier --check . && uv run --with ruff ruff format --check apps/api",
+    "web:dev": "pnpm --filter @biased/web dev",
+    "api:dev": "uv run --project apps/api uvicorn api.main:app --reload --port 8000",
+    "db:generate": "pnpm --filter @biased/web db:generate",
+    "db:migrate": "pnpm --filter @biased/web db:migrate",
+    "docker:up": "docker compose -f infra/docker-compose.yml up -d --build",
+    "docker:down": "docker compose -f infra/docker-compose.yml down",
+    "docker:logs": "docker compose -f infra/docker-compose.yml logs -f"
+  },
+  "devDependencies": {
+    "prettier": "^3.6.2",
+    "turbo": "^2.6.1",
+    "typescript": "^5.9.3"
+  }
+}
