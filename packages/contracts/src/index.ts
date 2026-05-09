@@ -55,6 +55,61 @@ export type UpdateRecurringObligationStatusInput = z.infer<
   typeof updateRecurringObligationStatusInputSchema
 >;
 
+export const salesTransactionSchema = z.object({
+  id: z.string(),
+  date: z.string(),
+  sku: z.string(),
+  name: z.string().nullable().optional(),
+  category: z.string().nullable().optional(),
+  quantity: z.number().int(),
+  amountInr: z.number(),
+  marginPct: z.number().nullable().optional(),
+});
+export type SalesTransaction = z.infer<typeof salesTransactionSchema>;
+
+export const purchaseTransactionSchema = z.object({
+  id: z.string(),
+  date: z.string(),
+  supplierName: z.string(),
+  sku: z.string(),
+  quantity: z.number().int(),
+  amountInr: z.number(),
+});
+export type PurchaseTransaction = z.infer<typeof purchaseTransactionSchema>;
+
+export const expenseEntrySchema = z.object({
+  id: z.string(),
+  occurredOn: z.string(),
+  label: z.string(),
+  category: z.string(),
+  amountInr: z.number(),
+});
+export type ExpenseEntry = z.infer<typeof expenseEntrySchema>;
+
+export const quickAddSaleInputSchema = salesTransactionSchema
+  .omit({ id: true })
+  .extend({
+    quantity: z.number().int().min(1),
+    amountInr: z.number().nonnegative(),
+    marginPct: z.number().min(0).max(100).nullable().optional(),
+  });
+export type QuickAddSaleInput = z.infer<typeof quickAddSaleInputSchema>;
+
+export const quickAddPurchaseInputSchema = purchaseTransactionSchema
+  .omit({ id: true })
+  .extend({
+    quantity: z.number().int().min(1),
+    amountInr: z.number().nonnegative(),
+  });
+export type QuickAddPurchaseInput = z.infer<typeof quickAddPurchaseInputSchema>;
+
+export const quickAddExpenseInputSchema = expenseEntrySchema
+  .omit({ id: true })
+  .extend({
+    amountInr: z.number().nonnegative(),
+  });
+export type QuickAddExpenseInput = z.infer<typeof quickAddExpenseInputSchema>;
+
 export const statCardSchema = z.object({
   label: z.string(),
   value: z.string(),

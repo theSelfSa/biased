@@ -7,6 +7,9 @@ class Settings(BaseSettings):
     app_name: str = "biased-api"
     app_env: str = "development"
     cors_origins: str = "http://localhost:3000"
+    database_url: str = "postgresql://postgres:postgres@localhost:5433/biased"
+    demo_workspace_slug: str = "swasthya-care-pharmacy"
+    demo_workspace_name: str = "Swasthya Care Pharmacy"
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -16,7 +19,9 @@ class Settings(BaseSettings):
 
     @property
     def origin_list(self) -> list[str]:
-        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+        return [
+            origin.strip() for origin in self.cors_origins.split(",") if origin.strip()
+        ]
 
 
 @lru_cache(maxsize=1)

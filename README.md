@@ -38,7 +38,10 @@ This repository is being built in public in visible milestones:
 4. Apply auth and app schema:
    - `pnpm --filter @biased/web auth:migrate`
    - `pnpm db:migrate`
-5. Run the apps:
+5. Seed or reset the demo workspace (Postgres-backed):
+   - `pnpm demo:seed` (idempotent)
+   - `pnpm demo:reset` (deterministic reset + reload)
+6. Run the apps:
    - `pnpm web:dev`
    - `pnpm api:dev`
 

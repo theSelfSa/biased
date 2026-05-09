@@ -13,6 +13,7 @@ from api.models import (
     BriefingResult,
     BusinessDocument,
     CreateRecurringObligationRequest,
+    ExpenseEntry,
     ForecastRequest,
     HealthResponse,
     ImportConfirmResponse,
@@ -21,7 +22,12 @@ from api.models import (
     InvestigationRequest,
     InvestigationResult,
     ModelProviderSettings,
+    PurchaseTransaction,
+    QuickAddExpenseRequest,
+    QuickAddPurchaseRequest,
+    QuickAddSaleRequest,
     RecurringObligation,
+    SalesTransaction,
     UpdateRecurringObligationStatusRequest,
 )
 from api.services.demo_data import (
@@ -38,6 +44,9 @@ from api.services.demo_data import (
     load_recurring_obligations,
     mark_recurring_obligation_status,
     preview_upload,
+    quick_add_expense,
+    quick_add_purchase,
+    quick_add_sale,
     store_document,
     store_import_job,
 )
@@ -77,7 +86,9 @@ def documents() -> list[BusinessDocument]:
 @app.post("/api/documents", response_model=BusinessDocument)
 async def upload_document(kind: str = Form("document"), file: UploadFile = File(...)):
     content = await file.read()
-    return store_document(kind, file.filename or f"upload-{date.today().isoformat()}", content)
+    return store_document(
+        kind, file.filename or f"upload-{date.today().isoformat()}", content
+    )
 
 
 @app.get("/api/recurring-obligations", response_model=list[RecurringObligation])
@@ -145,6 +156,21 @@ def action_draft(action_id: str) -> ActionDraft:
 @app.get("/api/actions", response_model=ActionCenterSnapshot)
 def actions() -> ActionCenterSnapshot:
     return build_action_queue()
+
+
+@app.post("/api/quick-add/sales", response_model=SalesTransaction)
+def quick_sale(payload: QuickAddSaleRequest) -> SalesTransaction:
+    return quick_add_sale(payload)
+
+
+@app.post("/api/quick-add/purchases", response_model=PurchaseTransaction)
+def quick_purchase(payload: QuickAddPurchaseRequest) -> PurchaseTransaction:
+    return quick_add_purchase(payload)
+
+
+@app.post("/api/quick-add/expenses", response_model=ExpenseEntry)
+def quick_expense(payload: QuickAddExpenseRequest) -> ExpenseEntry:
+    return quick_add_expense(payload)
 
 
 @app.post("/api/settings/model-providers")

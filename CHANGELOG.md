@@ -2,6 +2,21 @@
 
 All notable changes to B.I.A.S.E.D. are documented in this file.
 
+## v0.3.0-milestone-b-final - 2026-05-09
+
+### Added
+- Postgres-backed import jobs and import-row persistence for preview/confirm flows.
+- Postgres-backed recurring obligations, business documents, and ledger transaction storage.
+- Quick-add API + dashboard UX for `sale`, `purchase`, and `expense` daily owner entries.
+- Demo workspace data utilities:
+  - `pnpm demo:seed` (idempotent seed)
+  - `pnpm demo:reset` (deterministic reset + reload)
+
+### Changed
+- Dashboard stats and action queue now compute from live Postgres data.
+- API persistence moved off runtime JSON files for owner-critical flows.
+- Drizzle schema expanded to include operational tables used by the API layer.
+
 ## v0.2.0-milestone-b-preview - 2026-05-09
 
 ### Added

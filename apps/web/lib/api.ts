@@ -4,8 +4,14 @@ import type {
   BriefingResult,
   BusinessDocument,
   DashboardSnapshot,
+  ExpenseEntry,
   ImportLedgerSnapshot,
   InvestigationResult,
+  PurchaseTransaction,
+  QuickAddExpenseInput,
+  QuickAddPurchaseInput,
+  QuickAddSaleInput,
+  SalesTransaction,
 } from "@biased/contracts";
 
 import {
@@ -93,4 +99,46 @@ export function draftAction(actionId: string) {
 
 export function getActionCenter() {
   return safeJson<ActionCenterSnapshot>("/api/actions", fallbackActionCenter);
+}
+
+export function quickAddSale(payload: QuickAddSaleInput) {
+  return safeJson<SalesTransaction>(
+    "/api/quick-add/sales",
+    {
+      id: "fallback-sale",
+      ...payload,
+    },
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+export function quickAddPurchase(payload: QuickAddPurchaseInput) {
+  return safeJson<PurchaseTransaction>(
+    "/api/quick-add/purchases",
+    {
+      id: "fallback-purchase",
+      ...payload,
+    },
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+export function quickAddExpense(payload: QuickAddExpenseInput) {
+  return safeJson<ExpenseEntry>(
+    "/api/quick-add/expenses",
+    {
+      id: "fallback-expense",
+      ...payload,
+    },
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
 }

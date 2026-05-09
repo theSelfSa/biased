@@ -155,3 +155,56 @@ class ActionCenterSnapshot(BaseModel):
 class ModelProviderSettings(BaseModel):
     mode: str
     providers: list[str] = Field(default_factory=list)
+
+
+class SalesTransaction(BaseModel):
+    id: str
+    date: str
+    sku: str
+    name: str | None = None
+    category: str | None = None
+    quantity: int
+    amountInr: float
+    marginPct: float | None = None
+
+
+class PurchaseTransaction(BaseModel):
+    id: str
+    date: str
+    supplierName: str
+    sku: str
+    quantity: int
+    amountInr: float
+
+
+class ExpenseEntry(BaseModel):
+    id: str
+    occurredOn: str
+    label: str
+    category: str
+    amountInr: float
+
+
+class QuickAddSaleRequest(BaseModel):
+    date: str
+    sku: str
+    name: str | None = None
+    category: str | None = None
+    quantity: int = Field(default=1, ge=1)
+    amountInr: float = Field(ge=0)
+    marginPct: float | None = Field(default=None, ge=0, le=100)
+
+
+class QuickAddPurchaseRequest(BaseModel):
+    date: str
+    supplierName: str
+    sku: str
+    quantity: int = Field(default=1, ge=1)
+    amountInr: float = Field(ge=0)
+
+
+class QuickAddExpenseRequest(BaseModel):
+    occurredOn: str
+    label: str
+    category: str
+    amountInr: float = Field(ge=0)

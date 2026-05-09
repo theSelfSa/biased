@@ -8,3 +8,5 @@ FastAPI service for analytics, imports, retrieval, forecasting, and AI orchestra
 - dashboard snapshot and sample document APIs
 - investigation and briefing flows
 - forecast and action draft endpoints
+- Postgres-backed recurring obligations, document storage, imports, and ledgers
+- idempotent demo seed/reset commands (`uv run --project apps/api api-data seed|reset`)

@@ -21,6 +21,8 @@
     "api:dev": "uv run --project apps/api uvicorn api.main:app --reload --port 8000",
     "db:generate": "pnpm --filter @biased/web db:generate",
     "db:migrate": "pnpm --filter @biased/web db:migrate",
+    "demo:seed": "uv run --project apps/api api-data seed",
+    "demo:reset": "uv run --project apps/api api-data reset",
     "docker:up": "docker compose -f infra/docker-compose.yml up -d --build",
     "docker:down": "docker compose -f infra/docker-compose.yml down",
     "docker:logs": "docker compose -f infra/docker-compose.yml logs -f"

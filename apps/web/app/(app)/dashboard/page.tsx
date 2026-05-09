@@ -2,6 +2,7 @@ import { Card, CardDescription, CardHeader, CardTitle, StatCard } from "@biased/
 
 import { CreateWorkspaceForm } from "@/components/create-workspace-form";
 import { MarginChart } from "@/components/margin-chart";
+import { QuickAddEntries } from "@/components/quick-add-entries";
 import { RecurringObligationsManager } from "@/components/recurring-obligations-manager";
 import { getDashboardSnapshot, getMorningBrief } from "@/lib/api";
 import { getSession } from "@/lib/session";
@@ -92,6 +93,10 @@ export default async function DashboardPage() {
             ))}
           </ul>
         </Card>
+      </section>
+
+      <section>
+        <QuickAddEntries />
       </section>
 
       <section>
