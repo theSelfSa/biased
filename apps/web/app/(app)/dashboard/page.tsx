@@ -2,6 +2,7 @@ import { Card, CardDescription, CardHeader, CardTitle, StatCard } from "@biased/
 
 import { CreateWorkspaceForm } from "@/components/create-workspace-form";
 import { MarginChart } from "@/components/margin-chart";
+import { RecurringObligationsManager } from "@/components/recurring-obligations-manager";
 import { getDashboardSnapshot, getMorningBrief } from "@/lib/api";
 import { getSession } from "@/lib/session";
 
@@ -73,25 +74,9 @@ export default async function DashboardPage() {
       </section>
 
       <section className="grid gap-5 xl:grid-cols-3">
-        <Card className="space-y-4">
-          <CardTitle>Recurring bills coming due</CardTitle>
-          <ul className="space-y-3 text-sm">
-            {dashboard.obligations.map((item) => (
-              <li
-                key={item.id}
-                className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-white/10 dark:bg-white/5"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <span className="font-medium">{item.label}</span>
-                  <span>₹{item.amountInr.toLocaleString("en-IN")}</span>
-                </div>
-                <p className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-500">
-                  {item.dueDate} • {item.recurrence}
-                </p>
-              </li>
-            ))}
-          </ul>
-        </Card>
+        <div className="xl:col-span-2">
+          <RecurringObligationsManager initialObligations={dashboard.obligations} />
+        </div>
 
         <Card className="space-y-4">
           <CardTitle>Inventory alerts</CardTitle>
@@ -107,10 +92,12 @@ export default async function DashboardPage() {
             ))}
           </ul>
         </Card>
+      </section>
 
+      <section>
         <Card className="space-y-4">
           <CardTitle>Action queue</CardTitle>
-          <ul className="space-y-3 text-sm">
+          <ul className="grid gap-3 text-sm lg:grid-cols-2">
             {dashboard.actionQueue.map((item) => (
               <li
                 key={item.id}

@@ -3,6 +3,12 @@ import { z } from "zod";
 export const memberRoleSchema = z.enum(["owner", "manager", "accountant"]);
 export type MemberRole = z.infer<typeof memberRoleSchema>;
 
+export const recurrenceSchema = z.enum(["monthly", "quarterly", "annual"]);
+export type Recurrence = z.infer<typeof recurrenceSchema>;
+
+export const recurringObligationStatusSchema = z.enum(["due", "paid", "scheduled"]);
+export type RecurringObligationStatus = z.infer<typeof recurringObligationStatusSchema>;
+
 export const supplierSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -28,10 +34,26 @@ export const recurringObligationSchema = z.object({
   category: z.string(),
   amountInr: z.number(),
   dueDate: z.string(),
-  recurrence: z.enum(["monthly", "quarterly", "annual"]),
-  status: z.enum(["due", "paid", "scheduled"]),
+  recurrence: recurrenceSchema,
+  status: recurringObligationStatusSchema,
 });
 export type RecurringObligation = z.infer<typeof recurringObligationSchema>;
+
+export const createRecurringObligationInputSchema = recurringObligationSchema
+  .omit({ id: true })
+  .extend({
+    status: recurringObligationStatusSchema.optional(),
+  });
+export type CreateRecurringObligationInput = z.infer<
+  typeof createRecurringObligationInputSchema
+>;
+
+export const updateRecurringObligationStatusInputSchema = z.object({
+  status: recurringObligationStatusSchema,
+});
+export type UpdateRecurringObligationStatusInput = z.infer<
+  typeof updateRecurringObligationStatusInputSchema
+>;
 
 export const statCardSchema = z.object({
   label: z.string(),
@@ -74,6 +96,11 @@ export const businessDocumentSchema = z.object({
   uploadedAt: z.string(),
 });
 export type BusinessDocument = z.infer<typeof businessDocumentSchema>;
+
+export const documentUploadResponseSchema = businessDocumentSchema.extend({
+  stored: z.boolean().default(true),
+});
+export type DocumentUploadResponse = z.infer<typeof documentUploadResponseSchema>;
 
 export const investigationResultSchema = z.object({
   question: z.string(),
@@ -119,6 +146,19 @@ export const actionDraftSchema = z.object({
 });
 export type ActionDraft = z.infer<typeof actionDraftSchema>;
 
+export const actionCenterItemSchema = insightSchema.extend({
+  actionType: z.string(),
+  targetEntity: z.string(),
+  status: z.enum(["open", "watching", "resolved"]),
+});
+export type ActionCenterItem = z.infer<typeof actionCenterItemSchema>;
+
+export const actionCenterSnapshotSchema = z.object({
+  headline: z.string(),
+  items: z.array(actionCenterItemSchema),
+});
+export type ActionCenterSnapshot = z.infer<typeof actionCenterSnapshotSchema>;
+
 export const importPreviewSchema = z.object({
   importType: z.string(),
   filename: z.string(),
@@ -128,3 +168,39 @@ export const importPreviewSchema = z.object({
   warnings: z.array(z.string()),
 });
 export type ImportPreview = z.infer<typeof importPreviewSchema>;
+
+export const importConfirmResponseSchema = z.object({
+  status: z.enum(["confirmed", "missing", "already_confirmed"]),
+  jobId: z.string(),
+  importType: z.string().optional(),
+  rowCount: z.number().default(0),
+  appliedCount: z.number().default(0),
+  affectedCollections: z.array(z.string()).default([]),
+  warnings: z.array(z.string()).default([]),
+});
+export type ImportConfirmResponse = z.infer<typeof importConfirmResponseSchema>;
+
+export const importHistoryEntrySchema = z.object({
+  jobId: z.string(),
+  importType: z.string(),
+  filename: z.string(),
+  rowCount: z.number(),
+  appliedCount: z.number(),
+  confirmedAt: z.string(),
+});
+export type ImportHistoryEntry = z.infer<typeof importHistoryEntrySchema>;
+
+export const importCollectionSummarySchema = z.object({
+  importType: z.string(),
+  rowCount: z.number(),
+  latestImportAt: z.string().nullable(),
+  columns: z.array(z.string()),
+  sampleRows: z.array(z.record(z.string(), z.unknown())),
+});
+export type ImportCollectionSummary = z.infer<typeof importCollectionSummarySchema>;
+
+export const importLedgerSnapshotSchema = z.object({
+  history: z.array(importHistoryEntrySchema),
+  collections: z.array(importCollectionSummarySchema),
+});
+export type ImportLedgerSnapshot = z.infer<typeof importLedgerSnapshotSchema>;

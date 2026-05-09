@@ -1,15 +1,19 @@
 import type {
   ActionDraft,
+  ActionCenterSnapshot,
   BriefingResult,
   BusinessDocument,
   DashboardSnapshot,
+  ImportLedgerSnapshot,
   InvestigationResult,
 } from "@biased/contracts";
 
 import {
+  fallbackActionCenter,
   fallbackBriefing,
   fallbackDashboard,
   fallbackDocuments,
+  fallbackImportLedger,
   fallbackInvestigation,
 } from "@/lib/fallback-data";
 
@@ -42,6 +46,10 @@ export function getDashboardSnapshot() {
 
 export function getDocuments() {
   return safeJson<BusinessDocument[]>("/api/documents", fallbackDocuments);
+}
+
+export function getImportLedger() {
+  return safeJson<ImportLedgerSnapshot>("/api/import-records", fallbackImportLedger);
 }
 
 export function getMorningBrief() {
@@ -81,4 +89,8 @@ export function draftAction(actionId: string) {
       body: JSON.stringify({ actionId }),
     },
   );
+}
+
+export function getActionCenter() {
+  return safeJson<ActionCenterSnapshot>("/api/actions", fallbackActionCenter);
 }

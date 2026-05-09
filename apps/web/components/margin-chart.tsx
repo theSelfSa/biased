@@ -1,18 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+
+const subscribe = () => () => {};
 
 export function MarginChart({
   data,
 }: {
   data: { label: string; revenueInr: number; marginPct: number }[];
 }) {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useSyncExternalStore(subscribe, () => true, () => false);
 
   if (!mounted) {
     return <div className="h-72 w-full rounded-[24px] bg-slate-100/80 dark:bg-white/5" />;

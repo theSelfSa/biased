@@ -1,5 +1,6 @@
 import { Card, CardDescription, CardTitle } from "@biased/ui";
 
+import { DocumentsWorkspace } from "@/components/documents-workspace";
 import { getDocuments } from "@/lib/api";
 
 export default async function DocumentsPage() {
@@ -15,19 +16,7 @@ export default async function DocumentsPage() {
         </CardDescription>
       </Card>
 
-      <div className="grid gap-5 lg:grid-cols-2">
-        {documents.map((document) => (
-          <Card key={document.id}>
-            <CardTitle>{document.title}</CardTitle>
-            <CardDescription className="mt-3 leading-7">
-              {document.summary}
-            </CardDescription>
-            <p className="mt-4 text-xs uppercase tracking-[0.2em] text-[var(--color-brand-600)]">
-              {document.kind} • uploaded {document.uploadedAt}
-            </p>
-          </Card>
-        ))}
-      </div>
+      <DocumentsWorkspace initialDocuments={documents} />
     </div>
   );
 }

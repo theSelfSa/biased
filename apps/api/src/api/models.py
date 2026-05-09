@@ -20,8 +20,72 @@ class ImportJobResponse(BaseModel):
     preview: ImportPreview
 
 
+class ImportConfirmResponse(BaseModel):
+    status: str
+    jobId: str
+    importType: str | None = None
+    rowCount: int = 0
+    appliedCount: int = 0
+    affectedCollections: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+
+
+class ImportHistoryEntry(BaseModel):
+    jobId: str
+    importType: str
+    filename: str
+    rowCount: int
+    appliedCount: int
+    confirmedAt: str
+
+
+class ImportCollectionSummary(BaseModel):
+    importType: str
+    rowCount: int
+    latestImportAt: str | None = None
+    columns: list[str] = Field(default_factory=list)
+    sampleRows: list[dict[str, object]] = Field(default_factory=list)
+
+
+class ImportLedgerSnapshot(BaseModel):
+    history: list[ImportHistoryEntry] = Field(default_factory=list)
+    collections: list[ImportCollectionSummary] = Field(default_factory=list)
+
+
 class InvestigationRequest(BaseModel):
     question: str
+
+
+class BusinessDocument(BaseModel):
+    id: str
+    title: str
+    kind: str
+    summary: str
+    uploadedAt: str
+    stored: bool = True
+
+
+class RecurringObligation(BaseModel):
+    id: str
+    label: str
+    category: str
+    amountInr: float
+    dueDate: str
+    recurrence: str
+    status: str
+
+
+class CreateRecurringObligationRequest(BaseModel):
+    label: str
+    category: str
+    amountInr: float
+    dueDate: str
+    recurrence: str
+    status: str = "due"
+
+
+class UpdateRecurringObligationStatusRequest(BaseModel):
+    status: str = "paid"
 
 
 class InvestigationEvidence(BaseModel):
@@ -71,6 +135,21 @@ class ActionDraft(BaseModel):
     rationale: str
     draftText: str
     approvalRequired: bool
+
+
+class ActionCenterItem(BaseModel):
+    id: str
+    title: str
+    detail: str
+    severity: str
+    actionType: str
+    targetEntity: str
+    status: str
+
+
+class ActionCenterSnapshot(BaseModel):
+    headline: str
+    items: list[ActionCenterItem] = Field(default_factory=list)
 
 
 class ModelProviderSettings(BaseModel):

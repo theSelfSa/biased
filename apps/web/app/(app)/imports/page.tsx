@@ -1,8 +1,12 @@
 import { Card, CardDescription, CardTitle } from "@biased/ui";
 
+import { ImportLedger } from "@/components/import-ledger";
 import { ImportUploader } from "@/components/import-uploader";
+import { getImportLedger } from "@/lib/api";
 
-export default function ImportsPage() {
+export default async function ImportsPage() {
+  const ledger = await getImportLedger();
+
   return (
     <div className="space-y-6">
       <Card className="space-y-3">
@@ -20,6 +24,7 @@ export default function ImportsPage() {
       </Card>
 
       <ImportUploader />
+      <ImportLedger ledger={ledger} />
     </div>
   );
 }

@@ -21,3 +21,5 @@ __pycache__
 .env
 .env.local
 .env.*.local
+
+data/demo/runtime/*.json

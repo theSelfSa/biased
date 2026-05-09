@@ -1,7 +1,9 @@
 import type {
+  ActionCenterSnapshot,
   BriefingResult,
   BusinessDocument,
   DashboardSnapshot,
+  ImportLedgerSnapshot,
   InvestigationResult,
 } from "@biased/contracts";
 
@@ -165,3 +167,71 @@ export const fallbackDocuments: BusinessDocument[] = [
     uploadedAt: "2026-05-05",
   },
 ];
+
+export const fallbackActionCenter: ActionCenterSnapshot = {
+  headline:
+    "Focus first on obligations that can tighten cash, then use the imported ledgers to validate what changed most recently.",
+  items: [
+    {
+      id: "draft-supplier",
+      title: "Stage supplier follow-up for Primary distributor payment",
+      detail:
+        "₹53,800 is due on 2026-05-16. Prepare a message before the next payment cycle tightens cash.",
+      severity: "critical",
+      actionType: "vendor_follow_up",
+      targetEntity: "Primary distributor payment",
+      status: "open",
+    },
+    {
+      id: "obligation-rent",
+      title: "Protect cash for Shop rent",
+      detail:
+        "₹55,000 is due in 2 days and should stay visible in the owner plan.",
+      severity: "warning",
+      actionType: "bill_review",
+      targetEntity: "Shop rent",
+      status: "open",
+    },
+  ],
+};
+
+export const fallbackImportLedger: ImportLedgerSnapshot = {
+  history: [],
+  collections: [
+    {
+      importType: "sales",
+      rowCount: 0,
+      latestImportAt: null,
+      columns: [],
+      sampleRows: [],
+    },
+    {
+      importType: "purchases",
+      rowCount: 0,
+      latestImportAt: null,
+      columns: [],
+      sampleRows: [],
+    },
+    {
+      importType: "products",
+      rowCount: 0,
+      latestImportAt: null,
+      columns: [],
+      sampleRows: [],
+    },
+    {
+      importType: "expenses",
+      rowCount: 0,
+      latestImportAt: null,
+      columns: [],
+      sampleRows: [],
+    },
+    {
+      importType: "recurring_obligations",
+      rowCount: 0,
+      latestImportAt: null,
+      columns: [],
+      sampleRows: [],
+    },
+  ],
+};
