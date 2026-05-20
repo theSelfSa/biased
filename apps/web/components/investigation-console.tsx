@@ -60,6 +60,23 @@ export function InvestigationConsole() {
           {result.mode ?? "local-open"} • Latency: {result.latencyMs ?? 0}ms •
           Est. cost: ${(result.estimatedCostUsd ?? 0).toFixed(6)}
         </div>
+
+        {result.orchestration ? (
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
+            <p className="font-semibold uppercase tracking-[0.16em] text-[var(--color-brand-700)]">
+              {result.orchestration.framework} orchestration
+            </p>
+            <p className="mt-2">
+              Route: {result.orchestration.route.join(" → ") || "router"}
+            </p>
+            <p className="mt-1">
+              Tools:{" "}
+              {result.orchestration.toolCalls
+                .map((item) => `${item.tool} [${item.status}]`)
+                .join(", ") || "none"}
+            </p>
+          </div>
+        ) : null}
       </Card>
 
       <Card className="space-y-4">

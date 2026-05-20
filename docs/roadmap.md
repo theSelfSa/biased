@@ -16,7 +16,7 @@ This roadmap tracks the public evolution of B.I.A.S.E.D. and highlights where co
 
 ## Active focus (current cycle)
 - strengthen testing depth for core flows
-- improve recruiter-facing proof assets (screenshots, walkthrough outputs)
+- improve proof assets (screenshots, walkthrough outputs)
 - harden docs around runtime behavior, tradeoffs, and failure handling
 
 ## Next milestone themes

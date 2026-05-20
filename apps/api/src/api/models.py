@@ -93,6 +93,20 @@ class InvestigationEvidence(BaseModel):
     detail: str
     source: str
 
+class InvestigationToolCall(BaseModel):
+    tool: str
+    status: str
+    runtime: str
+    detail: str | None = None
+
+
+class InvestigationOrchestration(BaseModel):
+    framework: str
+    route: list[str] = Field(default_factory=list)
+    taskClass: str
+    toolRuntime: str
+    toolCalls: list[InvestigationToolCall] = Field(default_factory=list)
+
 
 class InvestigationResult(BaseModel):
     question: str
@@ -105,6 +119,7 @@ class InvestigationResult(BaseModel):
     mode: str | None = None
     latencyMs: int | None = None
     estimatedCostUsd: float | None = None
+    orchestration: InvestigationOrchestration | None = None
 
 
 class BriefingRequest(BaseModel):

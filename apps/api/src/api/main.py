@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
+from typing import Any
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -63,6 +64,7 @@ from api.services.demo_data import (
     store_import_job,
     update_action_status,
 )
+from api.services.mcp_rpc import handle_mcp_request
 
 settings = get_settings()
 
@@ -211,6 +213,11 @@ def run_scenario(payload: ScenarioPlannerRequest) -> ScenarioPlannerResult:
 @app.post("/api/scheduler/run", response_model=SchedulerRunResult)
 def run_scheduler() -> SchedulerRunResult:
     return build_scheduler_run()
+
+
+@app.post("/mcp")
+def mcp_rpc(payload: dict[str, Any]) -> dict[str, Any]:
+    return handle_mcp_request(payload)
 
 
 def main() -> None:

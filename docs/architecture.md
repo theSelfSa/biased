@@ -8,6 +8,8 @@ flowchart LR
   B --> C["Postgres + pgvector"]
   B --> D["Ollama (local-open mode)"]
   B --> E["BYO Cloud Providers (optional)"]
+  H["External MCP Clients"] --> I["MCP JSON-RPC Endpoint (/mcp)"]
+  I --> B
   F["Demo Fixtures"] --> C
   G["Shared Contracts"] --> A
   G --> B
@@ -17,15 +19,18 @@ flowchart LR
 
 - Owner workflows: imports, documents, dashboard, quick-add, action center, ask, forecast lab
 - Better Auth session integration
+- Workspace membership RBAC (`owner`, `manager`, `accountant`) for protected member-management APIs
 - PWA delivery for Android and Windows reach
 
 ## API service (`apps/api`)
 
 - Import preview + confirm pipeline
 - Recurring obligations, documents, and ledger persistence
-- Investigation workflow with guardrails + citations
+- Investigation workflow with guardrails + citations + tool-call trace
+- Agent orchestration layer (`router -> sql_analyst -> rag_retriever -> response_writer`)
 - Model routing profiles (`local-open`, `byo-cloud`, `hybrid`)
 - Forecasting, scenarios, and scheduler runs
+- MCP-compatible tool server at `POST /mcp` (`initialize`, `tools/list`, `tools/call`)
 
 ## Shared packages
 

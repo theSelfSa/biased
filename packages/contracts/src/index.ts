@@ -164,6 +164,24 @@ export const documentUploadResponseSchema = businessDocumentSchema.extend({
 export type DocumentUploadResponse = z.infer<
   typeof documentUploadResponseSchema
 >;
+export const investigationToolCallSchema = z.object({
+  tool: z.string(),
+  status: z.string(),
+  runtime: z.string(),
+  detail: z.string().optional(),
+});
+export type InvestigationToolCall = z.infer<typeof investigationToolCallSchema>;
+
+export const investigationOrchestrationSchema = z.object({
+  framework: z.string(),
+  route: z.array(z.string()),
+  taskClass: z.string(),
+  toolRuntime: z.string(),
+  toolCalls: z.array(investigationToolCallSchema),
+});
+export type InvestigationOrchestration = z.infer<
+  typeof investigationOrchestrationSchema
+>;
 
 export const investigationResultSchema = z.object({
   question: z.string(),
@@ -182,6 +200,7 @@ export const investigationResultSchema = z.object({
   mode: z.enum(["local-open", "byo-cloud", "hybrid"]).optional(),
   latencyMs: z.number().int().optional(),
   estimatedCostUsd: z.number().min(0).optional(),
+  orchestration: investigationOrchestrationSchema.optional(),
 });
 export type InvestigationResult = z.infer<typeof investigationResultSchema>;
 

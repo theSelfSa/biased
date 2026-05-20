@@ -6,9 +6,10 @@ FastAPI service for ingestion, analytics, retrieval, forecasting, and AI orchest
 `apps/api` provides backend workflows that power the web application:
 - import preview, normalization, and confirmation flows
 - recurring obligations, documents, and ledger persistence
-- investigation and briefing generation
+- investigation and briefing generation with agent orchestration
 - forecast, scenario, and scheduler execution
 - model provider mode persistence and runtime metadata
+- MCP-compatible tool server for external integrations
 
 ## Key API surfaces
 - `GET /health`
@@ -20,6 +21,7 @@ FastAPI service for ingestion, analytics, retrieval, forecasting, and AI orchest
 - `POST /api/forecasts/run`
 - `POST /api/scenarios/run`
 - `POST /api/scheduler/run`
+- `POST /mcp` (JSON-RPC methods: `initialize`, `tools/list`, `tools/call`)
 
 ## Local commands
 - start API locally:
@@ -32,6 +34,7 @@ FastAPI service for ingestion, analytics, retrieval, forecasting, and AI orchest
 - Postgres is the source of truth for operational business memory.
 - pgvector stores retrieval chunks for evidence snippets.
 - local-open mode runs with Ollama; cloud providers are optional.
+- Agent orchestration runs through a LangGraph path when optional deps are installed, with a deterministic fallback path otherwise.
 
 ## Quality expectations
 - preserve deterministic demo behavior for reproducible walkthroughs

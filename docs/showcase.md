@@ -1,6 +1,6 @@
 # Showcase Runbook
 
-Use this runbook for recruiter demos, interview walkthroughs, and recorded proof assets.
+Use this runbook for product demos, technical walkthroughs, and recorded proof assets.
 
 ## Demo preparation checklist
 1. Start stack and seed demo data:
@@ -14,7 +14,7 @@ Use this runbook for recruiter demos, interview walkthroughs, and recorded proof
    - evidence-backed investigation
    - action-oriented output
 
-## 90-second recruiter walkthrough (impact-first)
+## 90-second product walkthrough (impact-first)
 1. Open Dashboard and call out revenue/margin/bills/near-expiry signals.
 2. Open Imports and show confirmed ledger history.
 3. Open Ask B.I.A.S.E.D. and run:
@@ -51,6 +51,7 @@ Use this runbook for recruiter demos, interview walkthroughs, and recorded proof
   - evidence list with source labels
   - recommendations
   - provider/mode/latency/cost metadata
+  - orchestration route and tool execution trace
 - action lifecycle is visible:
   - `open`
   - `watching`

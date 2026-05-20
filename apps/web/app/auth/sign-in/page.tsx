@@ -15,7 +15,7 @@ export default function SignInPage() {
           <CardTitle className="text-4xl">Return to your business command center</CardTitle>
           <CardDescription className="leading-7">
             Use your account to manage your own workspace while keeping the seeded demo
-            available for portfolio walkthroughs.
+            available for deterministic product walkthroughs.
           </CardDescription>
         </Card>
 

@@ -15,7 +15,7 @@ export default function SignUpPage() {
           <CardTitle className="text-4xl">Start building your business memory</CardTitle>
           <CardDescription className="leading-7">
             Create a personal owner account, then spin up your own workspace or keep
-            the seeded pharmacy demo for showcases and public demos.
+            the seeded pharmacy demo for deterministic demos and local testing.
           </CardDescription>
         </Card>
 

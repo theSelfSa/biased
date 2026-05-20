@@ -52,6 +52,7 @@ from api.models import (
     SchedulerRunResult,
     SalesTransaction,
 )
+from api.services.agent_orchestration import orchestrate_investigation
 
 
 def repo_root() -> Path:
@@ -2608,13 +2609,46 @@ def generate_investigation(question: str) -> InvestigationResult:
         )
 
     ensure_demo_seeded()
+    task_class = "summarize"
+    provider = "ollama-local"
+    profile = ModelProfile(
+        mode="local-open",
+        providers=[],
+        updatedAt=datetime.utcnow().isoformat() + "Z",
+    )
+    orchestration_payload: dict[str, Any] = {
+        "framework": "linear-fallback",
+        "route": ["router", "response_writer"],
+        "taskClass": "summarize",
+        "toolRuntime": "native",
+        "toolCalls": [],
+    }
+    sql_insight: str | None = None
+    citations: list[dict[str, str]] = []
     with db_cursor() as cursor:
         workspace_id = ensure_workspace(cursor)["id"]
         profile = load_model_profile_for_cursor(cursor, workspace_id)
         task_class = infer_task_class(question)
         provider = choose_provider(profile, task_class)
-        sql_insight = guarded_sql_insight(cursor, workspace_id, question)
-        citations = retrieve_document_citations(cursor, workspace_id, question, limit=2)
+        orchestration_payload = orchestrate_investigation(
+            question=question,
+            task_class=task_class,
+            provider=provider,
+            mode=profile.mode,
+            safe_sql_tool=lambda prompt: guarded_sql_insight(
+                cursor, workspace_id, prompt
+            ),
+            rag_tool=lambda prompt: retrieve_document_citations(
+                cursor, workspace_id, prompt, limit=2
+            ),
+        )
+        sql_raw = orchestration_payload.get("sqlInsight")
+        sql_insight = str(sql_raw).strip() if sql_raw else None
+        citations_raw = orchestration_payload.get("citations")
+        if isinstance(citations_raw, list):
+            citations = [item for item in citations_raw if isinstance(item, dict)]
+        else:
+            citations = []
 
         cursor.execute(
             """
@@ -2677,6 +2711,48 @@ def generate_investigation(question: str) -> InvestigationResult:
             "source": "products.expiry_window_45d",
         },
     ]
+    route = [
+        str(step)
+        for step in (orchestration_payload.get("route") or [])
+        if str(step).strip()
+    ]
+    tool_calls_raw = orchestration_payload.get("toolCalls")
+    tool_calls: list[dict[str, str]] = []
+    if isinstance(tool_calls_raw, list):
+        for item in tool_calls_raw:
+            if not isinstance(item, dict):
+                continue
+            tool_calls.append(
+                {
+                    "tool": str(item.get("tool", "")),
+                    "status": str(item.get("status", "used")),
+                    "runtime": str(item.get("runtime", "native")),
+                    "detail": str(item.get("detail", "")),
+                }
+            )
+    if route:
+        evidence.append(
+            {
+                "label": "Agent orchestration route",
+                "detail": " → ".join(route),
+                "source": str(
+                    orchestration_payload.get("framework", "orchestration_runtime")
+                ),
+            }
+        )
+    if tool_calls:
+        tool_summary = ", ".join(
+            f"{item['tool']} [{item['status']}]"
+            for item in tool_calls
+            if item.get("tool")
+        )
+        evidence.append(
+            {
+                "label": "Tool execution trace",
+                "detail": tool_summary,
+                "source": "tool_calls",
+            }
+        )
     if sql_insight:
         evidence.append(
             {
@@ -2720,6 +2796,13 @@ def generate_investigation(question: str) -> InvestigationResult:
         mode=profile.mode,
         latencyMs=latency_ms,
         estimatedCostUsd=estimated_cost,
+        orchestration={
+            "framework": str(orchestration_payload.get("framework", "linear-fallback")),
+            "route": route,
+            "taskClass": task_class,
+            "toolRuntime": str(orchestration_payload.get("toolRuntime", "native")),
+            "toolCalls": tool_calls,
+        },
     )
 
 

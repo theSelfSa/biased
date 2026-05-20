@@ -6,6 +6,7 @@ Next.js App Router web application for B.I.A.S.E.D.
 `apps/web` owns the user-facing product experience:
 - marketing landing and onboarding flows
 - authentication and workspace entry
+- role-based workspace membership controls (`owner`, `manager`, `accountant`)
 - dashboard, imports, documents, investigation, action center, planner
 - PWA shell optimized for Android and Windows browser install flows
 
@@ -17,6 +18,11 @@ Next.js App Router web application for B.I.A.S.E.D.
 - `/ask` investigation workspace
 - `/actions` action center lifecycle management
 - `/planner` forecast and scenario workspace
+
+## RBAC API surfaces
+- `POST /api/workspaces` create workspace and assign creator as `owner`
+- `GET /api/workspaces/[slug]/members` list members (`manager+`)
+- `PATCH /api/workspaces/[slug]/members/[userId]` change member role (`owner` only)
 
 ## Local commands
 - `pnpm dev`

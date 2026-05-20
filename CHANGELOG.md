@@ -57,7 +57,7 @@ All notable changes to B.I.A.S.E.D. are documented in this file.
   - estimated cost
 - Retrieval chunk storage with pgvector-backed similarity lookup and evidence citations.
 - Guarded investigation flow with safe prompt checks and SQL insight helper.
-- Model settings UI and expanded investigation workspace for recruiter-facing demo clarity.
+- Model settings UI and expanded investigation workspace for clearer demo flows.
 
 ## v0.3.0-milestone-b-final - 2026-05-09
 

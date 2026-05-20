@@ -37,7 +37,7 @@ export default function MarketingPage() {
             <div className="grid gap-6 lg:grid-cols-[1fr_0.9fr]">
               <div className="space-y-4">
                 <CardDescription className="text-xs uppercase tracking-[0.24em]">
-                  Recruiter-ready flagship project
+                  Flagship open-source build
                 </CardDescription>
                 <CardTitle className="text-3xl">
                   India-first pharmacy demo, reusable SMB core, and a real AI product

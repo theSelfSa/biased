@@ -17,7 +17,7 @@ This repository is the current public implementation of a longer-running project
 - [Why this project exists](#why-this-project-exists)
 - [What is implemented now](#what-is-implemented-now)
 - [Quickstart](#quickstart-local-development)
-- [Recruiter and interview proof](#recruiter-and-interview-proof)
+- [Feature evidence and demo assets](#feature-evidence-and-demo-assets)
 - [Project timeline](#project-timeline)
 - [Repository layout](#repository-layout)
 - [Engineering quality bar](#engineering-quality-bar)
@@ -40,10 +40,12 @@ Current showcase scope (`v1.0.0-showcase`) includes:
 - action queue with lifecycle states (`open`, `watching`, `snoozed`, `resolved`)
 
 ### AI analyst workflows
-- investigation flow with prompt guardrails and structured output
+- investigation flow with prompt guardrails, tool use, and structured output
+- LangGraph-style orchestration route with tool-call trace metadata
 - retrieval-backed evidence snippets from stored business documents
 - provider modes: `local-open`, `byo-cloud`, `hybrid`
 - model metadata surfaced in responses (provider, mode, latency, estimated cost)
+- MCP-compatible JSON-RPC server for external tool integration (`POST /mcp`)
 
 ### Forecasting and planning
 - deterministic baseline forecasting for core metrics
@@ -62,6 +64,8 @@ flowchart LR
   B --> C["Postgres + pgvector"]
   B --> D["Ollama (local-open mode)"]
   B --> E["BYO Cloud Providers (optional)"]
+  H["External MCP Clients"] --> I["MCP JSON-RPC Endpoint (/mcp)"]
+  I --> B
   F["Demo Fixtures"] --> C
   G["Shared Contracts"] --> A
   G --> B
@@ -88,9 +92,10 @@ Detailed architecture notes: [docs/architecture.md](docs/architecture.md)
 
 PostgreSQL runs on `localhost:5433` in local mode to reduce conflicts with other stacks.
 
-## Recruiter and interview proof
+## Feature evidence and demo assets
 - Architecture and boundaries: [docs/architecture.md](docs/architecture.md)
 - Deployment paths: [docs/deployment.md](docs/deployment.md)
+- Feature-to-implementation map: [docs/feature-evidence.md](docs/feature-evidence.md)
 - Demo runbook: [docs/showcase.md](docs/showcase.md)
 - Roadmap and contributor entry points: [docs/roadmap.md](docs/roadmap.md)
 - Demo data rules: [data/demo/README.md](data/demo/README.md)
@@ -119,7 +124,7 @@ For release details, see [CHANGELOG.md](CHANGELOG.md).
 
 ## Repository layout
 - `apps/web` — Next.js app, auth, dashboard UX, investigation, planner, PWA shell
-- `apps/api` — FastAPI analytics, imports, retrieval, forecasting, scheduler flows
+- `apps/api` — FastAPI analytics, agent orchestration, MCP endpoint, retrieval, forecasting, scheduler flows
 - `packages/contracts` — shared contracts and structured response schemas
 - `packages/ui` — shared branded UI primitives
 - `packages/config` — shared linting/tooling configuration
@@ -133,6 +138,7 @@ For release details, see [CHANGELOG.md](CHANGELOG.md).
   - API compile sanity
 - shared contracts keep API/UI boundaries explicit
 - seeded demo data supports deterministic local walkthroughs
+- role-based workspace membership APIs enforce `owner/manager/accountant` boundaries
 - privacy rule is strict: no raw private business data in repository history
 
 ## Deployment options
